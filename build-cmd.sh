@@ -67,6 +67,9 @@ pushd "$top/nghttp2"
             # Stage archives
             mkdir -p "${stage}/lib/release"
             mv "$top/nghttp2/lib/Release"/nghttp2.* "${stage}"/lib/release/
+
+            mkdir -p "$stage/include/nghttp2"
+            cp "$NGHTTP2_VERSION_HEADER_DIR"/*.h "$stage/include/nghttp2/"
         ;;
 
         darwin*)
@@ -98,6 +101,9 @@ pushd "$top/nghttp2"
             popd
 
 #            make distclean
+
+            mkdir -p "$stage/include/nghttp2"
+            cp "$NGHTTP2_VERSION_HEADER_DIR"/*.h "$stage/include/nghttp2/"
         ;;
 
         linux*)
@@ -117,7 +123,19 @@ pushd "$top/nghttp2"
             # unset DISTCC_HOSTS CC CXX CFLAGS CPPFLAGS CXXFLAGS
 
             # Default target per --address-size
-            opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE $LL_BUILD_RELEASE}"
+            opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE}"
+
+            # Setup build flags
+			DEBUG_COMMON_FLAGS="$opts -Og -g -fPIC -DPIC"
+			RELEASE_COMMON_FLAGS="$opts -O3 -g -fPIC -DPIC -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+			DEBUG_CFLAGS="$DEBUG_COMMON_FLAGS"
+			RELEASE_CFLAGS="$RELEASE_COMMON_FLAGS"
+            DEBUG_CXXFLAGS="$DEBUG_COMMON_FLAGS -std=c++17"
+			RELEASE_CXXFLAGS="$RELEASE_COMMON_FLAGS -std=c++17"
+            DEBUG_CPPFLAGS="-DPIC"
+			RELEASE_CPPFLAGS="-DPIC"
+
+            JOBS=`cat /proc/cpuinfo | grep processor | wc -l`
 
             # Handle any deliberate platform targeting
             if [ -z "${TARGET_CPPFLAGS:-}" ]; then
@@ -128,15 +146,34 @@ pushd "$top/nghttp2"
                 export CPPFLAGS="$TARGET_CPPFLAGS"
             fi
 
-            # Release configure and build
-            ./configure --enable-lib-only CFLAGS="$opts" CXXFLAGS="$opts"
-            make
+            # debug configure and build
+            CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" ./configure --enable-lib-only \
+                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
+            make -j$JOBS
             make check
+            make install DESTDIR="$stage"
 
-            mkdir -p "$stage/lib/release"
-            # ?! Unclear why this build tucks built libraries into a hidden
-            # .libs directory.
-            mv "$top/nghttp2/lib/.libs/libnghttp2.a" "$stage/lib/release/"
+            # conditionally run unit tests
+            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                make check
+            fi
+
+            make distclean
+
+            # Release configure and build
+            CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" ./configure --enable-lib-only \
+                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
+            make -j$JOBS
+            make check
+            make install DESTDIR="$stage"
+
+            # conditionally run unit tests
+            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                make check
+            fi
+
+            make distclean
+
         ;;
     esac
     mkdir -p "$stage/LICENSES"
@@ -144,8 +181,5 @@ pushd "$top/nghttp2"
 popd
 
 # Must be done after the build.  nghttp2ver.h is created as part of the build.
-version="$(sed -n -E 's/#define NGHTTP2_VERSION "([^"]+)"/\1/p' "${NGHTTP2_VERSION_HEADER_DIR}/nghttp2ver.h" | tr -d '\r' )"
+version="$(sed -n -E 's/#define NGHTTP2_VERSION "([^"]+)"/\1/p' "${stage}/include/nghttp2/nghttp2ver.h" | tr -d '\r' )"
 echo "${version}.${build}" > "${stage}/VERSION.txt"
-
-mkdir -p "$stage/include/nghttp2"
-cp "$NGHTTP2_VERSION_HEADER_DIR"/*.h "$stage/include/nghttp2/"

@@ -82,7 +82,10 @@ Copyright (c) 2012, 2014, 2015, 2016 nghttp2 contributors</string>
           </map>
           <key>manifest</key>
           <array>
-            <string>lib/release/libnghttp2.*</string>
+            <string>lib/debug/*</string>
+            <string>lib/debug/pkgconfig/*</string>
+            <string>lib/release/*</string>
+            <string>lib/release/pkgconfig/*</string>
           </array>
           <key>name</key>
           <string>linux</string>
@@ -105,25 +108,6 @@ Copyright (c) 2012, 2014, 2015, 2016 nghttp2 contributors</string>
           </array>
           <key>name</key>
           <string>windows</string>
-        </map>
-        <key>windows64</key>
-        <map>
-          <key>configurations</key>
-          <map>
-            <key>default</key>
-            <map>
-              <key>default</key>
-              <boolean>true</boolean>
-              <key>name</key>
-              <string>default</string>
-            </map>
-          </map>
-          <key>manifest</key>
-          <array>
-            <string>lib/release/nghttp2.*</string>
-          </array>
-          <key>name</key>
-          <string>windows64</string>
         </map>
       </map>
       <key>source_directory</key>
