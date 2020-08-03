@@ -146,6 +146,9 @@ pushd "$top/nghttp2"
                 export CPPFLAGS="$TARGET_CPPFLAGS"
             fi
 
+            # force regenerate autoconf
+            autoreconf -fvi
+
             # debug configure and build
             CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" ./configure --enable-lib-only \
                 --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
