@@ -146,11 +146,20 @@ pushd "$top/nghttp2"
                 export CPPFLAGS="$TARGET_CPPFLAGS"
             fi
 
+            # Fix up path for pkgconfig
+            if [ -d "$stage/packages/lib/release/pkgconfig" ]; then
+                fix_pkgconfig_prefix "$stage/packages"
+            fi
+
+            OLD_PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-}"
+
             # force regenerate autoconf
             autoreconf -fvi
 
             # debug configure and build
-            CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" ./configure --enable-lib-only \
+            export PKG_CONFIG_PATH="$stage/packages/lib/debug/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+
+            CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" ./configure --enable-lib-only --enable-static --disable-shared \
                 --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
             make -j$JOBS
             make check
@@ -164,7 +173,9 @@ pushd "$top/nghttp2"
             make distclean
 
             # Release configure and build
-            CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" ./configure --enable-lib-only \
+            export PKG_CONFIG_PATH="$stage/packages/lib/release/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+
+            CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" ./configure --enable-lib-only --enable-static --disable-shared \
                 --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
             make -j$JOBS
             make check
