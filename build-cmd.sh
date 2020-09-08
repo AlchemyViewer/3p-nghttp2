@@ -54,22 +54,49 @@ restore_dylibs ()
 pushd "$top/nghttp2"
     case "$AUTOBUILD_PLATFORM" in
         windows*)
-        
-            packages="$(cygpath -m "$stage/packages")"
             load_vsvars
 
-            cmake . -G"$AUTOBUILD_WIN_CMAKE_GEN" -DCMAKE_C_FLAGS:STRING="$LL_BUILD_RELEASE" \
-                -DCMAKE_CXX_FLAGS:STRING="$LL_BUILD_RELEASE" \
-                -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$stage")"
+            if [ "$AUTOBUILD_ADDRSIZE" = 32 ]
+            then
+                archflags=""
+            else
+                archflags=""
+            fi
 
-            cmake --build . --config Release
-
-            # Stage archives
-            mkdir -p "${stage}/lib/release"
-            mv "$top/nghttp2/lib/Release"/nghttp2.* "${stage}"/lib/release/
-
+            # Create staging dirs
             mkdir -p "$stage/include/nghttp2"
-            cp "$NGHTTP2_VERSION_HEADER_DIR"/*.h "$stage/include/nghttp2/"
+            mkdir -p "${stage}/lib/debug"
+            mkdir -p "${stage}/lib/release"
+
+            # Debug Build
+            mkdir -p "build_debug"
+            pushd "build_debug"
+
+                cmake -E env CFLAGS="$archflags /Zi" CXXFLAGS="$archflags /Zi" LDFLAGS="/DEBUG:FULL" \
+                cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -DENABLE_LIB_ONLY=ON \
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$stage")"
+
+                cmake --build . --config Debug --clean-first
+
+                cp -a lib/Debug/nghttp2.{lib,dll,exp,pdb} "$stage/lib/debug/"
+            popd
+
+            # Release Build
+            mkdir -p "build_release"
+            pushd "build_release"
+
+                cmake -E env CFLAGS="$archflags /O2 /Ob3 /GL /Gy /Zi" CXXFLAGS="$archflags /O2 /Ob3 /GL /Gy /Zi /std:c++17 /permissive-" LDFLAGS="/LTCG /OPT:REF /OPT:ICF /DEBUG:FULL" \
+                cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -DENABLE_LIB_ONLY=ON \
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$stage")"
+
+                cmake --build . --config Release --clean-first
+				
+                cp -a lib/Release/nghttp2.{lib,dll,exp,pdb} "$stage/lib/release/"
+
+                cp -a lib/includes/nghttp2/nghttp2ver.h "$stage/include/nghttp2"
+            popd
+
+            cp "$NGHTTP2_VERSION_HEADER_DIR"/nghttp2.h "$stage/include/nghttp2/"
         ;;
 
         darwin*)
