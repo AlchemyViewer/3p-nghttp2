@@ -902,10 +902,16 @@ ClientHandler::get_downstream_connection(int &err, Downstream *downstream) {
   err = 0;
 
   switch (faddr_->alt_mode) {
-  case UpstreamAltMode::API:
-    return std::make_unique<APIDownstreamConnection>(worker_);
-  case UpstreamAltMode::HEALTHMON:
-    return std::make_unique<HealthMonitorDownstreamConnection>();
+  case UpstreamAltMode::API: {
+    auto dconn = std::make_unique<APIDownstreamConnection>(worker_);
+    dconn->set_client_handler(this);
+    return dconn;
+  }
+  case UpstreamAltMode::HEALTHMON: {
+    auto dconn = std::make_unique<HealthMonitorDownstreamConnection>();
+    dconn->set_client_handler(this);
+    return dconn;
+  }
   default:
     break;
   }
@@ -977,6 +983,14 @@ ClientHandler::get_downstream_connection(int &err, Downstream *downstream) {
     if (dconn) {
       dconn->set_client_handler(this);
       return dconn;
+    }
+
+    if (worker_->get_connect_blocker()->blocked()) {
+      if (LOG_ENABLED(INFO)) {
+        DCLOG(INFO, this)
+            << "Worker wide backend connection was blocked temporarily";
+      }
+      return nullptr;
     }
 
     if (LOG_ENABLED(INFO)) {
