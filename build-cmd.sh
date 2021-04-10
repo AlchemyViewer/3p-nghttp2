@@ -56,13 +56,6 @@ pushd "$top/nghttp2"
         windows*)
             load_vsvars
 
-            if [ "$AUTOBUILD_ADDRSIZE" = 32 ]
-            then
-                archflags=""
-            else
-                archflags=""
-            fi
-
             # Create staging dirs
             mkdir -p "$stage/include/nghttp2"
             mkdir -p "${stage}/lib/debug"
@@ -71,8 +64,6 @@ pushd "$top/nghttp2"
             # Debug Build
             mkdir -p "build_debug"
             pushd "build_debug"
-
-                cmake -E env CFLAGS="$archflags /Zi" CXXFLAGS="$archflags /Zi" LDFLAGS="/DEBUG:FULL" \
                 cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -DENABLE_LIB_ONLY=ON \
                     -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$stage")" \
                     -DENABLE_SHARED_LIB=OFF \
@@ -80,14 +71,12 @@ pushd "$top/nghttp2"
 
                 cmake --build . --config Debug --clean-first
 
-                cp -a lib/Debug/nghttp2.{lib,dll,exp,pdb} "$stage/lib/debug/"
+                cp -a lib/Debug/nghttp2.lib "$stage/lib/debug/"
             popd
 
             # Release Build
             mkdir -p "build_release"
             pushd "build_release"
-
-                cmake -E env CFLAGS="$archflags /O2 /Ob3 /GL /Gy /Zi" CXXFLAGS="$archflags /O2 /Ob3 /GL /Gy /Zi /std:c++17 /permissive-" LDFLAGS="/LTCG /OPT:REF /OPT:ICF /DEBUG:FULL" \
                 cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -DENABLE_LIB_ONLY=ON \
                     -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$stage")" \
                     -DENABLE_SHARED_LIB=OFF \
@@ -95,7 +84,7 @@ pushd "$top/nghttp2"
 
                 cmake --build . --config Release --clean-first
                 
-                cp -a lib/Release/nghttp2.{lib,dll,exp,pdb} "$stage/lib/release/"
+                cp -a lib/Release/nghttp2.lib "$stage/lib/release/"
 
                 cp -a lib/includes/nghttp2/nghttp2ver.h "$stage/include/nghttp2"
             popd
