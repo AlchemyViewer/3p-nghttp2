@@ -466,7 +466,7 @@ add_subdirectory(python)
 add_subdirectory(tests)
 #add_subdirectory(tests/testdata)
 add_subdirectory(integration-tests)
-add_subdirectory(doc)
+#add_subdirectory(doc)
 add_subdirectory(contrib)
 add_subdirectory(script)
 
