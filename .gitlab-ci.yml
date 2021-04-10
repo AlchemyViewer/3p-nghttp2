@@ -1,67 +1,10 @@
-stages:
-  - build
-  - deploy
+include:
+  - project: 'alchemy/infrastructure/gitlab-ci-config'
+    file: '3p-library.yml'
 
 variables:
-  AUTOBUILD_PACKAGE_DIR: nghttp2
-  AUTOBUILD_PACKAGE_NAME: nghttp2
-  AUTOBUILD_BUILD_ID: $CI_PIPELINE_ID
-
-build:windows:
-  stage: build
-  tags:
-    - autobuild
-    - windows
-  before_script:
-    - pipenv install
-  script:
-    - pipenv run autobuild install -A32
-    - pipenv run autobuild build -A32
-    - pipenv run autobuild package -A32
-  artifacts:
-    paths:
-      - ${env:AUTOBUILD_PACKAGE_NAME}-*windows*.tar.bz2
-      
-build:windows64:
-  stage: build
-  tags:
-    - autobuild
-    - windows
-  before_script:
-    - pipenv install
-  script:
-    - pipenv run autobuild install -A64
-    - pipenv run autobuild build -A64
-    - pipenv run autobuild package -A64
-  artifacts:
-    paths:
-      - ${env:AUTOBUILD_PACKAGE_NAME}-*windows64*.tar.bz2
-
-build:linux64:
-  stage: build
-  image: r.alchemyviewer.org/alchemy/infrastructure/debian-build-image:latest
-  tags:
-    - linux
-    - docker
-  script:
-    - autobuild install -A64
-    - autobuild build -A64
-    - autobuild package -A64
-  artifacts:
-    paths:
-      - $AUTOBUILD_PACKAGE_NAME-*linux64*.tar.bz2
-
-deploy:nexus:
-  stage: deploy
-  tags:
-    - autobuild
-    - windows
-  when: manual
-  script:
-    - $FileNameLnx64 = Get-ChildItem -Path . -Name -Include ${env:AUTOBUILD_PACKAGE_NAME}-*-linux64-${env:AUTOBUILD_BUILD_ID}*.tar.bz2
-    - curl.exe -v --user "${env:AUTOBUILD_HTTP_USER}:${env:AUTOBUILD_HTTP_PASS}" --upload-file .\$FileNameLnx64 "https://pkg.alchemyviewer.org/repository/autobuild-external/${env:AUTOBUILD_PACKAGE_DIR}/linux64/${FileNameLnx64}"
-    - $FileNameWin32 = Get-ChildItem -Path . -Name -Include ${env:AUTOBUILD_PACKAGE_NAME}-*-windows-${env:AUTOBUILD_BUILD_ID}*.tar.bz2
-    - curl.exe -v --user "${env:AUTOBUILD_HTTP_USER}:${env:AUTOBUILD_HTTP_PASS}" --upload-file .\$FileNameWin32 "https://pkg.alchemyviewer.org/repository/autobuild-external/${env:AUTOBUILD_PACKAGE_DIR}/windows/${FileNameWin32}"
-    - $FileNameWin64 = Get-ChildItem -Path . -Name -Include ${env:AUTOBUILD_PACKAGE_NAME}-*-windows64-${env:AUTOBUILD_BUILD_ID}*.tar.bz2
-    - curl.exe -v --user "${env:AUTOBUILD_HTTP_USER}:${env:AUTOBUILD_HTTP_PASS}" --upload-file .\$FileNameWin64 "https://pkg.alchemyviewer.org/repository/autobuild-external/${env:AUTOBUILD_PACKAGE_DIR}/windows64/${FileNameWin64}"
-
+  BUILD_COMMON: 0
+  BUILD_WINDOWS: 1
+  BUILD_WINDOWS64: 1
+  BUILD_LINUX64: 1
+  BUILD_MACOS: 1
