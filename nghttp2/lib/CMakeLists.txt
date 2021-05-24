@@ -24,6 +24,7 @@ set(NGHTTP2_SOURCES
   nghttp2_http.c
   nghttp2_rcbuf.c
   nghttp2_debug.c
+  nghttp2_ksl.c
 )
 
 set(NGHTTP2_RES "")
@@ -50,6 +51,13 @@ if(ENABLE_SHARED_LIB)
     "${CMAKE_CURRENT_SOURCE_DIR}/includes"
   )
 
+  # <ALCHEMY>
+  if("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(nghttp2 PRIVATE /std:c++17 /permissive- /Zi $<$<CONFIG:Release>:/Ob3> $<$<CONFIG:Release>:/Gy> $<$<EQUAL:${CMAKE_SIZEOF_VOID_P},4>:/arch:SSE2>)
+    target_link_options(nghttp2 PRIVATE /DEBUG:FULL $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
+  endif()
+  # </ALCHEMY>
+
   install(TARGETS nghttp2
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
@@ -65,6 +73,14 @@ if(HAVE_CUNIT OR ENABLE_STATIC_LIB)
     ARCHIVE_OUTPUT_NAME nghttp2${STATIC_LIB_SUFFIX}
   )
   target_compile_definitions(nghttp2_static PUBLIC "-DNGHTTP2_STATICLIB")
+
+  # <ALCHEMY>
+  if("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(nghttp2_static PRIVATE /std:c++17 /permissive- /Z7 $<$<CONFIG:Release>:/Ob3> $<$<CONFIG:Release>:/Gy> $<$<EQUAL:${CMAKE_SIZEOF_VOID_P},4>:/arch:SSE2>)
+    target_link_options(nghttp2_static PRIVATE /DEBUG:FULL $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
+  endif()
+  # </ALCHEMY>
+
   if(ENABLE_STATIC_LIB)
     install(TARGETS nghttp2_static
       DESTINATION "${CMAKE_INSTALL_LIBDIR}")

@@ -1,342 +1,239 @@
-commit 8f7b008b158e12de0e58247afd170f127dbb6456 (HEAD, tag: v1.41.0, origin/master, origin/HEAD, master)
+commit fb0bd22979711c89d92d98ac5db57ebc6f4fd148 (HEAD, tag: v1.43.0, origin/master, origin/HEAD, master)
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-06-02
+AuthorDate: 2021-02-02
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-06-02
-
-    Update bash_completion
-
-commit 83086ba91a20a444a3b151bd5e0f55037795a31a
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-06-02
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-06-02
+CommitDate: 2021-02-02
 
     Update manual pages
 
-commit c3b46625633cd9a4519f6fbcd9048127b84a5514
-Merge: 3eecc2ca f8da73bd
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-06-02
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-06-02
-
-    Merge pull request from GHSA-q5wr-xfw9-q7xr
-    
-    Implement max settings option
-
-commit 3eecc2ca45530024abb687bf808ec768eaa5e98a
+commit 3dc6c0afa2ed8b80b1f219813539db28f70886a3
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-06-02
+AuthorDate: 2021-02-02
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-06-02
+CommitDate: 2021-02-02
 
-    Bump version number to v1.41.0, LT revision to 34:0:20
+    Bump version number to 1.43.0
 
-commit 881c060d8c92c5246d9a6b5829e63838869bbaa9
+commit e8762781a72bf9220ec4de4e1c540d046051bb0a
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-06-02
+AuthorDate: 2021-02-02
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-06-02
+CommitDate: 2021-02-02
 
     Update AUTHORS
 
-commit f8da73bd042f810f34d19f9eae02b46d870af394
-Author:     James M Snell <jasnell@gmail.com>
-AuthorDate: 2020-04-19
-Commit:     James M Snell <jasnell@gmail.com>
-CommitDate: 2020-05-05
-
-    Earlier check for settings flood
-
-commit 336a98feb0d56b9ac54e12736b18785c27f75090
-Author:     James M Snell <jasnell@gmail.com>
-AuthorDate: 2020-04-17
-Commit:     James M Snell <jasnell@gmail.com>
-CommitDate: 2020-05-05
-
-    Implement max settings option
-
-commit ef41583614e95efd12b6cce821e34837c1b28ed0
+commit 2bf841e22ae1fc27b9f4881cdc63020511ec047a
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-04-22
+AuthorDate: 2021-01-17
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-04-22
+CommitDate: 2021-01-17
 
-    Revert "Add missing connection error handling"
-    
-    This reverts commit b7d16101413276884d7f51c64f989f5f61abecb8.
+    workflow: Build with UBSAN enabled
 
-commit 979e6c5325826d06922f25047ffafb7ed92fa749
-Merge: b7d16101 c663349f
+commit 7ebab98e91df1678da74b47d690a1b1c5f2ba2e2
+Merge: 43ba3125 23fc6cc9
 Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-04-21
+AuthorDate: 2020-12-29
 Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-04-21
+CommitDate: 2020-12-29
 
-    Merge pull request #1459 from nghttp2/proxyprotov2
+    Merge pull request #1548 from nghttp2/py3-bindings
     
-    nghttpx: Add PROXY protocol version 2
+    Py3 bindings
 
-commit b7d16101413276884d7f51c64f989f5f61abecb8
+commit 23fc6cc9002e34f9b771ee54286e559fa4eecaef
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-04-21
+AuthorDate: 2020-12-29
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-04-21
+CommitDate: 2020-12-29
 
-    Add missing connection error handling
+    Bump Linux runner OS to ubuntu 20.04
 
-commit cd53bd81bfbf571a0f7836b5979e19702a76890f
-Merge: 3b17a659 e5625b8c
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-04-18
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-04-18
-
-    Merge pull request #1460 from gportay/patch-1
-    
-    Fix doc
-
-commit e5625b8cf083b076c0fcb9d4b80749f30c75b4f7
-Author:     Gaël PORTAY <gael.portay@gmail.com>
-AuthorDate: 2020-04-18
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-04-18
-
-    Fix doc
-
-commit c663349f24b851865f4f1f5ca21de542a2e5c07f
+commit 2e35cdea6ca3cdad3c111d1ca927d70dc29f9771
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-04-18
+AuthorDate: 2020-12-29
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-04-18
-
-    integration: Add PROXY protocol v2 tests
-
-commit 854e9fe395e928d31650a0f398897cc209064c90
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-04-18
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-04-18
-
-    nghttpx: Always call init_forwarded_for
-    
-    Always call init_forwarded_for to get the default when source address
-    in PROXY protocol is ignored.  This ensures that forwarded header
-    field has the same value as x-forwarded-for.
-
-commit c60ea227cc61294da0ea0355108c2f90d77f974a
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-04-18
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-04-18
+CommitDate: 2020-12-29
 
     Update doc
 
-commit 49cd8e6e733a74d52d442a3d2667fd130d6437c8
+commit 22af8e782bed98e4b4f71617c9b905dd37e7c3f3
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-04-17
+AuthorDate: 2020-12-29
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-04-18
+CommitDate: 2020-12-29
 
-    nghttpx: Add PROXY-protocol v2 support
+    Require python3 for python bindings
 
-commit 3b17a659f69fb2ef5d2239142437da2902e61911
-Merge: 600fcdf5 dc7a7df6
+commit c88e9100096330c5d4445bc8d7482d6ad2c75fce
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2020-12-29
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2020-12-29
+
+    Update ax_python_devel.m4
+
+commit 43ba3125932c1d56addaeded2b7f62637af255cd
+Merge: 79a4f789 3c17299a
 Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-03-31
+AuthorDate: 2020-12-29
 Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-03-31
+CommitDate: 2020-12-29
 
-    Merge pull request #1453 from Leo-Neat/master
+    Merge pull request #1547 from nghttp2/sphinx-v3.3
     
-    Add CIFuzz
+    Sphinx v3.3
 
-commit 600fcdf52d60f67ecd936d61eaf0c7ecb8624075
-Merge: b3f85e2d 4922bb41
+commit 3c17299a925dc150fd7aa7e1534d4b1679fb397d
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2020-12-29
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2020-12-29
+
+    Update enum references
+
+commit a7ecff657cfbcc442bfc70d51efbad1b57a9be46
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2020-12-29
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2020-12-29
+
+    Make doc generation work with sphinx v3.3
+
+commit 79a4f789a1453d8b916fbcfa43804184462bd11f
+Merge: 46536729 28ba0b37
 Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-03-31
+AuthorDate: 2020-12-29
 Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-03-31
+CommitDate: 2020-12-29
 
-    Merge pull request #1455 from xjtian/long_serials
+    Merge pull request #1546 from nghttp2/py3-scripts
     
-    Fix get_x509_serial for long serial numbers
+    Python3 development scripts
 
-commit 4922bb41d604a15483e12f1b33bac2bf6628d866
-Author:     Jacky Tian <xjtian@fb.com>
-AuthorDate: 2020-03-31
-Commit:     Jacky Tian <xjtian@fb.com>
-CommitDate: 2020-03-31
+commit 28ba0b37e17e4daa901b622b0865dae61ee709a3
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2020-12-29
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2020-12-29
 
-    static_cast size parameter in StringRef constructor to size_t
+    Update document reference
 
-commit aad8697575d90b1763c31ad06986be0550917aac
-Author:     Jacky Tian <xjtian@fb.com>
-AuthorDate: 2020-03-30
-Commit:     Jacky Tian <xjtian@fb.com>
-CommitDate: 2020-03-31
+commit 6b7ade9f3fb9ebb68bcb0c0911b2a831d4f10333
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2020-12-29
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2020-12-29
 
-    Fix get_x509_serial for long serial numbers
+    Require python3 for python scripts
 
-commit dc7a7df61c7cd1cc05c9c09f827e564495c2bebe
-Author:     Leo Neat <lneat@google.com>
-AuthorDate: 2020-03-18
-Commit:     Leo Neat <lneat@google.com>
-CommitDate: 2020-03-18
+commit 465367294fbcd2029b09844c4859b5acaa3fbe87
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2020-12-28
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2020-12-28
 
-    Adding CIFuzz
+    Bump clang-format to 10
 
-commit b3f85e2daa629732ac3ebb092cd5543c26045e03
-Merge: ffb49c6c 2ec58551
+commit 563c1173038a418165eebc27e61e4845eee3ca81
+Merge: 1c04ca80 d32e20bc
 Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-02-20
+AuthorDate: 2020-12-16
 Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-02-20
+CommitDate: 2020-12-16
 
-    Merge pull request #1444 from nghttp2/fix-recv-window-flow-control-issue
+    Merge pull request #1544 from nghttp2/nghttpx-clear-mcpool
     
-    Fix receiving stream data stall
+    nghttpx: Make sure that Pool gets cleared when all buffers are returned
 
-commit ffb49c6c589617d6c9a4172464b9100b377e56f9
-Merge: 459df42b 866eadb5
+commit 1c04ca80328434e8972726c9b26f524b4ee25a90
+Merge: 8b8ba6b0 d8c71d5f
 Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-02-20
+AuthorDate: 2020-12-16
 Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-02-20
+CommitDate: 2020-12-16
 
-    Merge pull request #1435 from geoffhill/master
+    Merge pull request #1540 from tavrez/patch-1
     
-    Enable session_create_idle_stream test, fix errors
+    Added new nghttp2_ksl.c to Windows makefile
 
-commit 2ec585518e83bec7de8deb0d429cd744d99fc72b
+commit d32e20bcaa8c9f4f24b9d5c3885204b6414fc923
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-02-19
+AuthorDate: 2020-12-16
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-02-20
+CommitDate: 2020-12-16
 
-    Fix receiving stream data stall
-    
-    Previously, if automatic window update is enabled (which is default),
-    after window size is set to 0 by
-    nghttp2_session_set_local_window_size, once the receiving window is
-    exhausted, even after window size is increased by
-    nghttp2_session_set_local_window_size, no more data cannot be
-    received.  This is because nghttp2_session_set_local_window_size does
-    not submit WINDOW_UPDATE.  It is only triggered when new data arrives
-    but since window is filled up, no more data cannot be received, thus
-    dead lock happens.
-    
-    This commit fixes this issue.  nghttp2_session_set_local_window_size
-    submits WINDOW_UPDATE if necessary.
-    
-    https://github.com/curl/curl/issues/4939
+    nghttpx: Make sure that Pool gets cleared when all buffers are returned
 
-commit 459df42b8b074dffd40ac1f95fc65ad099050a7a
-Merge: 5e13274b a4c1fed5
+commit 8b8ba6b0a61b58b2e40cb0325dbf49aca6fe62e2
+Merge: fb5b5aef 81fb0153
 Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-02-11
+AuthorDate: 2020-12-14
 Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-02-11
+CommitDate: 2020-12-14
 
-    Merge pull request #1442 from nghttp2/upgrade-llhttp
+    Merge pull request #1542 from nghttp2/nghttpx-check-sigalg
     
-    Bump llhttp to 2.0.4
+    nghttpx: Choose ECDSA cert if compatible signature algorithm available
 
-commit a4c1fed5139b2df7ce611a519a7b1d69aee3bae0
+commit 81fb015391c7ba9218b87caa148f46c888a49368
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-02-11
+AuthorDate: 2020-12-13
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-02-11
+CommitDate: 2020-12-13
 
-    Bump llhttp to 2.0.4
+    nghttpx: Choose ECDSA cert if compatible signature algorithm available
 
-commit 866eadb5de0f859d30272f5359a79c195271cd6c
-Author:     Geoff Hill <geoffhill@fb.com>
-AuthorDate: 2020-01-23
-Commit:     Geoff Hill <geoffhill@fb.com>
-CommitDate: 2020-01-23
+commit d8c71d5fdb6cd1579f2a569ccd7bdbdf9f776ea1
+Author:     Reza Tavakoli <9096461+tavrez@users.noreply.github.com>
+AuthorDate: 2020-12-02
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2020-12-02
 
-    Enable session_create_idle_stream test, fix errors
-    
-    Add the currently-unused `test_nghttp2_session_create_idle_stream()`
-    function to the test suite definition.
-    
-    Modify the test in two places to make it pass:
-    
-      * Use stream ID=10 as the priority stream ID to test automatic creation
-        of streams for priority specs. The code below checks against stream
-        ID=10 so I assume this was a typo in the test.
-    
-      * Set the `last_sent_stream_id` instead of the `next_stream_id` to test
-        that idle streams cannot be created with smaller numbers than the
-        most-recently-seen stream ID. Looking at the validation path in
-        `session_detect_idle_stream()`, I think this was another test typo.
+    Added new nghttp2_ksl.c to Windows makefile
 
-commit 5e13274b7c533b00f2a14582de5f6b34c08b0018
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2019-12-21
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2019-12-21
-
-    Fix typo
-
-commit e0d7f7de5e58b2e9abd92ee3384f78e91d018503
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2019-12-21
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2019-12-21
-
-    h2load: Allow port in --connect-to
-
-commit df575f968fa3d82fb40c2637e7d3e245def43766
-Author:     lucas <lucas@cloudflare.com>
-AuthorDate: 2019-12-12
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2019-12-21
-
-    h2load: add --connect-to option
-
-commit 1fff737955d3e080d4e4be9ecb615c83fd3fd767
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2019-12-18
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2019-12-18
-
-    clang-format-9
-
-commit b40c6c862fafe87fa32b28bf040456b064482893
-Merge: 2d5f7659 9bc2c75e
+commit fb5b5aef0aca21142d867b45f8b425a1da32bc4d
+Merge: ffcdf5df 6787423e
 Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2019-12-08
+AuthorDate: 2020-11-27
 Commit:     GitHub <noreply@github.com>
-CommitDate: 2019-12-08
+CommitDate: 2020-11-27
 
-    Merge pull request #1418 from vszakats/patch-1
+    Merge pull request #1537 from nghttp2/nghttpx-allow-colon-in-pattern
     
-    lib/CMakeLists.txt: Make hard-coded static lib suffix optional
+    nghttpx: Add workaround to include ':' in backend pattern
 
-commit 9bc2c75e388fbb5e6e694ef4471bd63521c966ae
-Author:     Viktor Szakats <vszakats@users.noreply.github.com>
-AuthorDate: 2019-11-15
-Commit:     Viktor Szakats <commit@vsz.me>
-CommitDate: 2019-11-15
-
-    lib/CMakeLists.txt: Make hard-coded static lib suffix optional
-    
-    It can be set via the `STATIC_LIB_SUFFIX` variable.
-    
-    This fixes every existing dependent project that relied on the name
-    having no suffix and thus capable of using either a static or shared
-    flavour depending on which one is present on this or how the linker
-    is configured.
-    
-    Ref: https://github.com/nghttp2/nghttp2/pull/1394
-
-commit 2d5f76594a8c4e11d6e2a70588c01433f214150b
+commit 6787423edc7928ea778260e9c0c54b72f0a39770
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2019-11-15
+AuthorDate: 2020-11-27
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2019-11-15
+CommitDate: 2020-11-27
 
-    Bump up version number to 1.41.0-DEV
+    nghttpx: Add workaround to include ':' in backend pattern
+
+commit ffcdf5dfbcfa9fa35a5501e0ea679bdf6181a88c
+Merge: c9d5472f 0cdb1738
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2020-11-24
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2020-11-24
+
+    Merge pull request #1533 from LorenzNickel/patch-1
+    
+    Fix typo in security.rst
+
+commit 0cdb173846f84ffff8035b83c1d9ddd4fe732fda
+Author:     Lorenz Nickel <lorenz.nickel@gmx.net>
+AuthorDate: 2020-11-23
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2020-11-23
+
+    Fix typo in security.rst
+
+commit c9d5472ffb5e7ec1214dd08d0afb4781c83725b2
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2020-11-23
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2020-11-23
+
+    Bump version number to 1.43.0-DEV
