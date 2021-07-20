@@ -228,7 +228,7 @@ process.  It will do fork and execute new executable, using same
 command-line arguments and environment variables.
 
 As of nghttpx version 1.20.0, that is all you have to do.  The new
-master process sends QUIT signal to the original process, when it is
+main process sends QUIT signal to the original process, when it is
 ready to serve requests, to shut it down gracefully.
 
 For earlier versions of nghttpx, you have to do one more thing.  At
@@ -239,7 +239,7 @@ current process will exit.  At this point, only new nghttpx process
 exists and serves incoming requests.
 
 If you want to just reload configuration file without executing new
-binary, send SIGHUP to nghttpx master process.
+binary, send SIGHUP to nghttpx main process.
 
 Re-opening log files
 --------------------
@@ -445,10 +445,10 @@ nghttpx server accepts any of the identity and secret pairs in the
 file.  The default cipher suite list does not contain PSK cipher
 suites.  In order to use PSK, PSK cipher suite must be enabled by
 using :option:`--ciphers` option.  The desired PSK cipher suite may be
-listed in `HTTP/2 cipher black list
+listed in `HTTP/2 cipher block list
 <https://tools.ietf.org/html/rfc7540#appendix-A>`_.  In order to use
-such PSK cipher suite with HTTP/2, disable HTTP/2 cipher black list by
-using :option:`--no-http2-cipher-black-list` option.  But you should
+such PSK cipher suite with HTTP/2, disable HTTP/2 cipher block list by
+using :option:`--no-http2-cipher-block-list` option.  But you should
 understand its implications.
 
 At the time of writing, even if only PSK cipher suites are specified
@@ -468,10 +468,10 @@ used, like so:
 The default cipher suite list does not contain PSK cipher suites.  In
 order to use PSK, PSK cipher suite must be enabled by using
 :option:`--client-ciphers` option.  The desired PSK cipher suite may
-be listed in `HTTP/2 cipher black list
+be listed in `HTTP/2 cipher block list
 <https://tools.ietf.org/html/rfc7540#appendix-A>`_.  In order to use
-such PSK cipher suite with HTTP/2, disable HTTP/2 cipher black list by
-using :option:`--client-no-http2-cipher-black-list` option.  But you
+such PSK cipher suite with HTTP/2, disable HTTP/2 cipher block list by
+using :option:`--client-no-http2-cipher-block-list` option.  But you
 should understand its implications.
 
 TLSv1.3
@@ -516,10 +516,10 @@ As of nghttpx v1.19.0, :option:`--ciphers` option only changes cipher
 list for frontend TLS connection.  In order to change cipher list for
 backend connection, use :option:`--client-ciphers` option.
 
-Similarly, :option:`--no-http2-cipher-black-list` option only disables
-HTTP/2 cipher black list for frontend connection.  In order to disable
-HTTP/2 cipher black list for backend connection, use
-:option:`--client-no-http2-cipher-black-list` option.
+Similarly, :option:`--no-http2-cipher-block-list` option only disables
+HTTP/2 cipher block list for frontend connection.  In order to disable
+HTTP/2 cipher block list for backend connection, use
+:option:`--client-no-http2-cipher-block-list` option.
 
 ``--accept-proxy-protocol`` option was deprecated.  Instead, use
 ``proxyproto`` parameter in :option:`--frontend` option to enable

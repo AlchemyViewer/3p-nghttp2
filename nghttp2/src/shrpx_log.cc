@@ -189,7 +189,7 @@ Log::~Log() {
 
   lgconf->update_tstamp_millis(std::chrono::system_clock::now());
 
-  // Error log format: <datetime> <master-pid> <current-pid>
+  // Error log format: <datetime> <main-pid> <current-pid>
   // <thread-id> <level> (<filename>:<line>) <msg>
   rv = snprintf(buf, sizeof(buf), "%s %d %d %s %s%s%s (%s:%d) %.*s\n",
                 lgconf->tstamp->time_iso8601.c_str(), config->pid, lgconf->pid,
@@ -639,7 +639,6 @@ void upstream_accesslog(const std::vector<LogFragment> &lfv,
       break;
     case LogFragmentType::METHOD:
       std::tie(p, last) = copy(method, p, last);
-      std::tie(p, last) = copy(' ', p, last);
       break;
     case LogFragmentType::PATH:
       std::tie(p, last) = copy_escape(path, p, last);

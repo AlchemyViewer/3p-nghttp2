@@ -1,239 +1,242 @@
-commit fb0bd22979711c89d92d98ac5db57ebc6f4fd148 (HEAD, tag: v1.43.0, origin/master, origin/HEAD, master)
+commit b799b063f882cc97f8484e95b41d0326260d9b93 (HEAD, tag: v1.44.0, origin/master, origin/HEAD, master)
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2021-02-02
+AuthorDate: 2021-07-18
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2021-02-02
+CommitDate: 2021-07-18
 
     Update manual pages
 
-commit 3dc6c0afa2ed8b80b1f219813539db28f70886a3
+commit 368014b8dd726e73f63a3b90a8b1e2abaa95274d
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2021-02-02
+AuthorDate: 2021-07-18
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2021-02-02
+CommitDate: 2021-07-18
 
-    Bump version number to 1.43.0
+    Bump version number to v1.44.0, LT revision to 34:2:20
 
-commit e8762781a72bf9220ec4de4e1c540d046051bb0a
+commit fa16e66a6df498acd60b37d01814bceb8b361957
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2021-02-02
+AuthorDate: 2021-07-14
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2021-02-02
+CommitDate: 2021-07-14
 
-    Update AUTHORS
+    nghttpx: Fix max distance in weight group/address cycle comparison
 
-commit 2bf841e22ae1fc27b9f4881cdc63020511ec047a
+commit 40af31da4c27f26837e0f43bf4f9c070a9521caa
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2021-01-17
+AuthorDate: 2021-07-14
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2021-01-17
+CommitDate: 2021-07-14
 
-    workflow: Build with UBSAN enabled
+    nghttpx: Set connect_blocker and live_check after shuffling addresses
 
-commit 7ebab98e91df1678da74b47d690a1b1c5f2ba2e2
-Merge: 43ba3125 23fc6cc9
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-12-29
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-12-29
+commit 9e6c0685a2696f4480f15f9960c7703f717d1f61
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-05-15
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-05-15
 
-    Merge pull request #1548 from nghttp2/py3-bindings
+    Fix build failure
+
+commit ebad3d475590cbd539880a6841572cc666e1ab1c
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-05-13
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-05-13
+
+    Port new ngtcp2 map implementation
+
+commit d4fd0681ef51d0290c7fbd54b1305910022ca690
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-05-13
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-05-13
+
+    Bump llhttp to 6.0.2
+
+commit 43a47aa08b50a9f81186f45dc15a532f53d8b507
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-05-13
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-05-13
+
+    Do not return HPE_USER from where it is prohibited
+
+commit 20079b4c2f688385ba9ecf723f958d0448894879
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-04-02
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-04-02
+
+    Update bash_completions
+
+commit 2aeec7703ed4551a5a5c37c1b916ad4650f09d9b
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-04-02
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-04-02
+
+    Update manual pages
+
+commit cef458c31ce0c16fe7b1df6d971b75ed1df70505
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-04-02
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-04-02
+
+    Replace black-list with block-list
     
-    Py3 bindings
+    nghttpx --no-http2-cipher-black-list and
+    --client-no-http2-cipher-black-list are deprecated and replaced with
+    --no-http2-cipher-block-list and --client-no-http2-cipher-block-list
+    respectively.
 
-commit 23fc6cc9002e34f9b771ee54286e559fa4eecaef
+commit 617a5766a2ab2fbc7f446a0d8a1d59a6872bd019
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-12-29
+AuthorDate: 2021-04-02
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-12-29
+CommitDate: 2021-04-02
 
-    Bump Linux runner OS to ubuntu 20.04
+    Replace master with main
 
-commit 2e35cdea6ca3cdad3c111d1ca927d70dc29f9771
+commit f1d67335542b21602e204ed1f80d861a1d720445
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-12-29
+AuthorDate: 2021-03-10
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-12-29
+CommitDate: 2021-03-10
+
+    Initialize Config rps field
+
+commit 5f3bcb1f586971d621681b554b5a7837515ee59f
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-03-06
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-03-06
+
+    Add precious variables for libev and jemalloc and use JEMALLOC_CFLAGS
+
+commit b419bfd95f525941f79985191abf48ae1d65c14f
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-02-24
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-02-24
+
+    Remove unused field
+
+commit e406a2c15e4d79ead398d781a621be3eb0f5c214
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-02-23
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-02-23
 
     Update doc
 
-commit 22af8e782bed98e4b4f71617c9b905dd37e7c3f3
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-12-29
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-12-29
-
-    Require python3 for python bindings
-
-commit c88e9100096330c5d4445bc8d7482d6ad2c75fce
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-12-29
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-12-29
-
-    Update ax_python_devel.m4
-
-commit 43ba3125932c1d56addaeded2b7f62637af255cd
-Merge: 79a4f789 3c17299a
+commit 962a75c45e46ba8e4d801ca336ddab9370ad8cb1
+Merge: 92944f78 6cdc13d6
 Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-12-29
+AuthorDate: 2021-02-23
 Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-12-29
+CommitDate: 2021-02-23
 
-    Merge pull request #1547 from nghttp2/sphinx-v3.3
+    Merge pull request #1559 from nghttp2/h2load-rps
     
-    Sphinx v3.3
+    h2load: Add --rps option
 
-commit 3c17299a925dc150fd7aa7e1534d4b1679fb397d
+commit 6cdc13d6c6837ab60a6f163cb14aecb480d7de85
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-12-29
+AuthorDate: 2021-02-23
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-12-29
+CommitDate: 2021-02-23
 
-    Update enum references
+    h2load: Add --rps option
 
-commit a7ecff657cfbcc442bfc70d51efbad1b57a9be46
+commit 92944f784791d7fd75d51db82df4b26003f3d427
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-12-29
+AuthorDate: 2021-02-23
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-12-29
+CommitDate: 2021-02-23
 
-    Make doc generation work with sphinx v3.3
+    h2load: Allow unit in -D option
 
-commit 79a4f789a1453d8b916fbcfa43804184462bd11f
-Merge: 46536729 28ba0b37
+commit 276792a81209e975dcbfa62d86b66425613d8164
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-02-23
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-02-23
+
+    Remove unnecessary function
+    
+    on_stream_close is called after on_frame_not_send_callback with
+    success=false without this function.
+
+commit 579fa6ea9305904257393beb2504c572f137ee89
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-02-21
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-02-21
+
+    Add more --with-* configure flags
+
+commit 2f2b211766fd012eccd780e5175dbbef6d14dd61
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-02-21
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-02-21
+
+    Add LIBTOOL_LDFLAGS configure variable
+
+commit 88a3cb51afe8c04c983ad810c02fdd4ddcc35e8c
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2021-02-18
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2021-02-18
+
+    Bump llhttp to 4.0.0
+
+commit 40679cf638541729752470900004c5acfdb247d1
+Merge: 5b587e85 50a1121d
 Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-12-29
+AuthorDate: 2021-02-08
 Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-12-29
+CommitDate: 2021-02-08
 
-    Merge pull request #1546 from nghttp2/py3-scripts
+    Merge pull request #1553 from nghttp2/nghttpx-fix-accesslog-method
     
-    Python3 development scripts
+    nghttpx: Remove trailing white space after $method log variable
 
-commit 28ba0b37e17e4daa901b622b0865dae61ee709a3
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-12-29
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-12-29
-
-    Update document reference
-
-commit 6b7ade9f3fb9ebb68bcb0c0911b2a831d4f10333
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-12-29
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-12-29
-
-    Require python3 for python scripts
-
-commit 465367294fbcd2029b09844c4859b5acaa3fbe87
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-12-28
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-12-28
-
-    Bump clang-format to 10
-
-commit 563c1173038a418165eebc27e61e4845eee3ca81
-Merge: 1c04ca80 d32e20bc
+commit 5b587e85784e694574385957e176bc2cba208373
+Merge: 3239c5ef 5b9892a9
 Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-12-16
+AuthorDate: 2021-02-08
 Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-12-16
+CommitDate: 2021-02-08
 
-    Merge pull request #1544 from nghttp2/nghttpx-clear-mcpool
+    Merge pull request #1550 from jktjkt/docs-asio-fix-typos
     
-    nghttpx: Make sure that Pool gets cleared when all buffers are returned
+    docs: asio: fix some typos
 
-commit 1c04ca80328434e8972726c9b26f524b4ee25a90
-Merge: 8b8ba6b0 d8c71d5f
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-12-16
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-12-16
-
-    Merge pull request #1540 from tavrez/patch-1
-    
-    Added new nghttp2_ksl.c to Windows makefile
-
-commit d32e20bcaa8c9f4f24b9d5c3885204b6414fc923
+commit 50a1121d812fc2091302cfb97364bafaee771f79
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-12-16
+AuthorDate: 2021-02-08
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-12-16
+CommitDate: 2021-02-08
 
-    nghttpx: Make sure that Pool gets cleared when all buffers are returned
+    nghttpx: Remove trailing white space after $method log variable
 
-commit 8b8ba6b0a61b58b2e40cb0325dbf49aca6fe62e2
-Merge: fb5b5aef 81fb0153
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-12-14
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-12-14
-
-    Merge pull request #1542 from nghttp2/nghttpx-check-sigalg
-    
-    nghttpx: Choose ECDSA cert if compatible signature algorithm available
-
-commit 81fb015391c7ba9218b87caa148f46c888a49368
+commit 3239c5efcc47acefc2cd98d8dee081406554810b
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-12-13
+AuthorDate: 2021-02-02
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-12-13
+CommitDate: 2021-02-02
 
-    nghttpx: Choose ECDSA cert if compatible signature algorithm available
+    Bump up version number to v1.44.0-DEV
 
-commit d8c71d5fdb6cd1579f2a569ccd7bdbdf9f776ea1
-Author:     Reza Tavakoli <9096461+tavrez@users.noreply.github.com>
-AuthorDate: 2020-12-02
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-12-02
+commit 5b9892a9026634352e30ff0fe3465f0dd77e4a18
+Author:     Jan Kundrát <jan.kundrat@cesnet.cz>
+AuthorDate: 2021-01-15
+Commit:     Jan Kundrát <jan.kundrat@cesnet.cz>
+CommitDate: 2021-01-15
 
-    Added new nghttp2_ksl.c to Windows makefile
-
-commit fb5b5aef0aca21142d867b45f8b425a1da32bc4d
-Merge: ffcdf5df 6787423e
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-11-27
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-11-27
-
-    Merge pull request #1537 from nghttp2/nghttpx-allow-colon-in-pattern
+    docs: asio: fix some typos
     
-    nghttpx: Add workaround to include ':' in backend pattern
-
-commit 6787423edc7928ea778260e9c0c54b72f0a39770
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-11-27
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-11-27
-
-    nghttpx: Add workaround to include ':' in backend pattern
-
-commit ffcdf5dfbcfa9fa35a5501e0ea679bdf6181a88c
-Merge: c9d5472f 0cdb1738
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2020-11-24
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-11-24
-
-    Merge pull request #1533 from LorenzNickel/patch-1
-    
-    Fix typo in security.rst
-
-commit 0cdb173846f84ffff8035b83c1d9ddd4fe732fda
-Author:     Lorenz Nickel <lorenz.nickel@gmx.net>
-AuthorDate: 2020-11-23
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2020-11-23
-
-    Fix typo in security.rst
-
-commit c9d5472ffb5e7ec1214dd08d0afb4781c83725b2
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2020-11-23
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2020-11-23
-
-    Bump version number to 1.43.0-DEV
+    Really just a s/pusedo/pseudo/g and s/exluced/excluded/g.
