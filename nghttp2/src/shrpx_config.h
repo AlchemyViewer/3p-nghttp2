@@ -51,6 +51,9 @@
 #include <nghttp2/nghttp2.h>
 
 #include "shrpx_router.h"
+#if ENABLE_HTTP3
+#  include "shrpx_quic.h"
+#endif // ENABLE_HTTP3
 #include "template.h"
 #include "http2.h"
 #include "network.h"
@@ -360,6 +363,36 @@ constexpr auto SHRPX_OPT_TLS13_CLIENT_CIPHERS =
     StringRef::from_lit("tls13-client-ciphers");
 constexpr auto SHRPX_OPT_NO_STRIP_INCOMING_EARLY_DATA =
     StringRef::from_lit("no-strip-incoming-early-data");
+constexpr auto SHRPX_OPT_QUIC_BPF_PROGRAM_FILE =
+    StringRef::from_lit("quic-bpf-program-file");
+constexpr auto SHRPX_OPT_NO_QUIC_BPF = StringRef::from_lit("no-quic-bpf");
+constexpr auto SHRPX_OPT_HTTP2_ALTSVC = StringRef::from_lit("http2-altsvc");
+constexpr auto SHRPX_OPT_FRONTEND_HTTP3_READ_TIMEOUT =
+    StringRef::from_lit("frontend-http3-read-timeout");
+constexpr auto SHRPX_OPT_FRONTEND_QUIC_IDLE_TIMEOUT =
+    StringRef::from_lit("frontend-quic-idle-timeout");
+constexpr auto SHRPX_OPT_FRONTEND_QUIC_DEBUG_LOG =
+    StringRef::from_lit("frontend-quic-debug-log");
+constexpr auto SHRPX_OPT_FRONTEND_HTTP3_WINDOW_SIZE =
+    StringRef::from_lit("frontend-http3-window-size");
+constexpr auto SHRPX_OPT_FRONTEND_HTTP3_CONNECTION_WINDOW_SIZE =
+    StringRef::from_lit("frontend-http3-connection-window-size");
+constexpr auto SHRPX_OPT_FRONTEND_HTTP3_MAX_WINDOW_SIZE =
+    StringRef::from_lit("frontend-http3-max-window-size");
+constexpr auto SHRPX_OPT_FRONTEND_HTTP3_MAX_CONNECTION_WINDOW_SIZE =
+    StringRef::from_lit("frontend-http3-max-connection-window-size");
+constexpr auto SHRPX_OPT_FRONTEND_HTTP3_MAX_CONCURRENT_STREAMS =
+    StringRef::from_lit("frontend-http3-max-concurrent-streams");
+constexpr auto SHRPX_OPT_FRONTEND_QUIC_EARLY_DATA =
+    StringRef::from_lit("frontend-quic-early-data");
+constexpr auto SHRPX_OPT_FRONTEND_QUIC_QLOG_DIR =
+    StringRef::from_lit("frontend-quic-qlog-dir");
+constexpr auto SHRPX_OPT_FRONTEND_QUIC_REQUIRE_TOKEN =
+    StringRef::from_lit("frontend-quic-require-token");
+constexpr auto SHRPX_OPT_FRONTEND_QUIC_CONGESTION_CONTROLLER =
+    StringRef::from_lit("frontend-quic-congestion-controller");
+constexpr auto SHRPX_OPT_FRONTEND_QUIC_CONNECTION_ID_ENCRYPTION_KEY =
+    StringRef::from_lit("frontend-quic-connection-id-encryption-key");
 
 constexpr size_t SHRPX_OBFUSCATED_NODE_LENGTH = 8;
 
@@ -370,6 +403,7 @@ enum class Proto {
   NONE,
   HTTP1,
   HTTP2,
+  HTTP3,
   MEMCACHED,
 };
 
@@ -419,7 +453,7 @@ enum class ForwardedNode {
 };
 
 struct AltSvc {
-  StringRef protocol_id, host, origin, service;
+  StringRef protocol_id, host, origin, service, params;
 
   uint16_t port;
 };
@@ -434,6 +468,8 @@ enum class UpstreamAltMode {
 };
 
 struct UpstreamAddr {
+  // The unique index of this address.
+  size_t index;
   // The frontend address (e.g., FQDN, hostname, IP address).  If
   // |host_unix| is true, this is UNIX domain socket path.  This must
   // be NULL terminated string.
@@ -458,6 +494,7 @@ struct UpstreamAddr {
   bool sni_fwd;
   // true if client is supposed to send PROXY protocol v1 header.
   bool accept_proxy_protocol;
+  bool quic;
   int fd;
 };
 
@@ -494,6 +531,8 @@ struct DownstreamAddrConfig {
   // variant (e.g., "https") when forwarding request to a backend
   // connected by TLS connection.
   bool upgrade_scheme;
+  // true if a request should not be forwarded to a backend.
+  bool dnf;
 };
 
 // Mapping hash to idx which is an index into
@@ -510,6 +549,7 @@ struct DownstreamAddrGroupConfig {
       : pattern(pattern),
         affinity{SessionAffinity::NONE},
         redirect_if_not_tls(false),
+        dnf{false},
         timeout{} {}
 
   StringRef pattern;
@@ -523,6 +563,8 @@ struct DownstreamAddrGroupConfig {
   // true if this group requires that client connection must be TLS,
   // and the request must be redirected to https URI.
   bool redirect_if_not_tls;
+  // true if a request should not be forwarded to a backend.
+  bool dnf;
   // Timeouts for backend connection.
   struct {
     ev_tstamp read;
@@ -560,6 +602,14 @@ struct TLSCertificate {
   StringRef cert_file;
   std::vector<uint8_t> sct_data;
 };
+
+#ifdef ENABLE_HTTP3
+struct QUICSecret {
+  std::array<uint8_t, SHRPX_QUIC_STATELESS_RESET_SECRETLEN>
+      stateless_reset_secret;
+  std::array<uint8_t, SHRPX_QUIC_TOKEN_SECRETLEN> token_secret;
+};
+#endif // ENABLE_HTTP3
 
 struct HttpProxy {
   Address addr;
@@ -698,6 +748,40 @@ struct TLSConfig {
   bool no_postpone_early_data;
 };
 
+#ifdef ENABLE_HTTP3
+struct QUICConfig {
+  struct {
+    struct {
+      ev_tstamp idle;
+    } timeout;
+    struct {
+      bool log;
+    } debug;
+    struct {
+      StringRef dir;
+    } qlog;
+    ngtcp2_cc_algo congestion_controller;
+    bool early_data;
+    bool require_token;
+    std::array<uint8_t, SHRPX_QUIC_CID_ENCRYPTION_KEYLEN> cid_encryption_key;
+  } upstream;
+  struct {
+    StringRef prog_file;
+    bool disabled;
+  } bpf;
+};
+
+struct Http3Config {
+  struct {
+    size_t max_concurrent_streams;
+    int32_t window_size;
+    int32_t connection_window_size;
+    int32_t max_window_size;
+    int32_t max_connection_window_size;
+  } upstream;
+};
+#endif // ENABLE_HTTP3
+
 // custom error page
 struct ErrorPage {
   // not NULL-terminated
@@ -734,6 +818,11 @@ struct HttpConfig {
     bool strip_incoming;
   } early_data;
   std::vector<AltSvc> altsvcs;
+  // altsvcs serialized in a wire format.
+  StringRef altsvc_header_value;
+  std::vector<AltSvc> http2_altsvcs;
+  // http2_altsvcs serialized in a wire format.
+  StringRef http2_altsvc_header_value;
   std::vector<ErrorPage> error_pages;
   HeaderRefs add_request_headers;
   HeaderRefs add_response_headers;
@@ -903,9 +992,16 @@ struct ConnectionConfig {
     int fastopen;
   } listener;
 
+#ifdef ENABLE_HTTP3
+  struct {
+    std::vector<UpstreamAddr> addrs;
+  } quic_listener;
+#endif // ENABLE_HTTP3
+
   struct {
     struct {
       ev_tstamp http2_read;
+      ev_tstamp http3_read;
       ev_tstamp read;
       ev_tstamp write;
       ev_tstamp idle_read;
@@ -946,6 +1042,9 @@ struct Config {
         http{},
         http2{},
         tls{},
+#ifdef ENABLE_HTTP3
+        quic{},
+#endif // ENABLE_HTTP3
         logging{},
         conn{},
         api{},
@@ -963,7 +1062,8 @@ struct Config {
         single_process{false},
         single_thread{false},
         ignore_per_pattern_mruby_error{false},
-        ev_loop_flags{0} {}
+        ev_loop_flags{0} {
+  }
   ~Config();
 
   Config(Config &&) = delete;
@@ -979,6 +1079,10 @@ struct Config {
   HttpConfig http;
   Http2Config http2;
   TLSConfig tls;
+#ifdef ENABLE_HTTP3
+  QUICConfig quic;
+  Http3Config http3;
+#endif // ENABLE_HTTP3
   LoggingConfig logging;
   ConnectionConfig conn;
   APIConfig api;
@@ -1103,13 +1207,27 @@ enum {
   SHRPX_OPTID_FRONTEND_HTTP2_SETTINGS_TIMEOUT,
   SHRPX_OPTID_FRONTEND_HTTP2_WINDOW_BITS,
   SHRPX_OPTID_FRONTEND_HTTP2_WINDOW_SIZE,
+  SHRPX_OPTID_FRONTEND_HTTP3_CONNECTION_WINDOW_SIZE,
+  SHRPX_OPTID_FRONTEND_HTTP3_MAX_CONCURRENT_STREAMS,
+  SHRPX_OPTID_FRONTEND_HTTP3_MAX_CONNECTION_WINDOW_SIZE,
+  SHRPX_OPTID_FRONTEND_HTTP3_MAX_WINDOW_SIZE,
+  SHRPX_OPTID_FRONTEND_HTTP3_READ_TIMEOUT,
+  SHRPX_OPTID_FRONTEND_HTTP3_WINDOW_SIZE,
   SHRPX_OPTID_FRONTEND_KEEP_ALIVE_TIMEOUT,
   SHRPX_OPTID_FRONTEND_MAX_REQUESTS,
   SHRPX_OPTID_FRONTEND_NO_TLS,
+  SHRPX_OPTID_FRONTEND_QUIC_CONGESTION_CONTROLLER,
+  SHRPX_OPTID_FRONTEND_QUIC_CONNECTION_ID_ENCRYPTION_KEY,
+  SHRPX_OPTID_FRONTEND_QUIC_DEBUG_LOG,
+  SHRPX_OPTID_FRONTEND_QUIC_EARLY_DATA,
+  SHRPX_OPTID_FRONTEND_QUIC_IDLE_TIMEOUT,
+  SHRPX_OPTID_FRONTEND_QUIC_QLOG_DIR,
+  SHRPX_OPTID_FRONTEND_QUIC_REQUIRE_TOKEN,
   SHRPX_OPTID_FRONTEND_READ_TIMEOUT,
   SHRPX_OPTID_FRONTEND_WRITE_TIMEOUT,
   SHRPX_OPTID_HEADER_FIELD_BUFFER,
   SHRPX_OPTID_HOST_REWRITE,
+  SHRPX_OPTID_HTTP2_ALTSVC,
   SHRPX_OPTID_HTTP2_BRIDGE,
   SHRPX_OPTID_HTTP2_MAX_CONCURRENT_STREAMS,
   SHRPX_OPTID_HTTP2_NO_COOKIE_CRUMBLING,
@@ -1130,6 +1248,7 @@ enum {
   SHRPX_OPTID_NO_KQUEUE,
   SHRPX_OPTID_NO_LOCATION_REWRITE,
   SHRPX_OPTID_NO_OCSP,
+  SHRPX_OPTID_NO_QUIC_BPF,
   SHRPX_OPTID_NO_SERVER_PUSH,
   SHRPX_OPTID_NO_SERVER_REWRITE,
   SHRPX_OPTID_NO_STRIP_INCOMING_EARLY_DATA,
@@ -1144,6 +1263,7 @@ enum {
   SHRPX_OPTID_PRIVATE_KEY_FILE,
   SHRPX_OPTID_PRIVATE_KEY_PASSWD_FILE,
   SHRPX_OPTID_PSK_SECRETS,
+  SHRPX_OPTID_QUIC_BPF_PROGRAM_FILE,
   SHRPX_OPTID_READ_BURST,
   SHRPX_OPTID_READ_RATE,
   SHRPX_OPTID_REDIRECT_HTTPS_PORT,
