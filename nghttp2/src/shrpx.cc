@@ -71,6 +71,7 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/rand.h>
 #include <ev.h>
 
 #include <nghttp2/nghttp2.h>
@@ -86,6 +87,7 @@
 #include "shrpx_signal.h"
 #include "shrpx_connection.h"
 #include "shrpx_log.h"
+#include "shrpx_http.h"
 #include "util.h"
 #include "app_helper.h"
 #include "tls.h"
@@ -129,6 +131,15 @@ constexpr auto ENV_ACCEPT_PREFIX = StringRef::from_lit("NGHTTPX_ACCEPT_");
 // SIGUSR2.  The new main process is expected to send QUIT signal to
 // the original main process to shut it down gracefully.
 constexpr auto ENV_ORIG_PID = StringRef::from_lit("NGHTTPX_ORIG_PID");
+
+// Prefix of environment variables to tell new binary the QUIC IPC
+// file descriptor and CID prefix of the lingering worker process.
+// The value must be comma separated parameters:
+// <FD>,<CID_PREFIX_0>,<CID_PREFIX_1>,...  <FD> is the file
+// descriptor.  <CID_PREFIX_I> is the I-th CID prefix in hex encoded
+// string.
+constexpr auto ENV_QUIC_WORKER_PROCESS_PREFIX =
+    StringRef::from_lit("NGHTTPX_QUIC_WORKER_PROCESS_");
 
 #ifndef _KERNEL_FASTOPEN
 #  define _KERNEL_FASTOPEN
@@ -181,8 +192,23 @@ void worker_process_child_cb(struct ev_loop *loop, ev_child *w, int revents);
 } // namespace
 
 struct WorkerProcess {
-  WorkerProcess(struct ev_loop *loop, pid_t worker_pid, int ipc_fd)
-      : loop(loop), worker_pid(worker_pid), ipc_fd(ipc_fd) {
+  WorkerProcess(struct ev_loop *loop, pid_t worker_pid, int ipc_fd
+#ifdef ENABLE_HTTP3
+                ,
+                int quic_ipc_fd,
+                const std::vector<std::array<uint8_t, SHRPX_QUIC_CID_PREFIXLEN>>
+                    &cid_prefixes
+#endif // ENABLE_HTTP3
+                )
+      : loop(loop),
+        worker_pid(worker_pid),
+        ipc_fd(ipc_fd)
+#ifdef ENABLE_HTTP3
+        ,
+        quic_ipc_fd(quic_ipc_fd),
+        cid_prefixes(cid_prefixes)
+#endif // ENABLE_HTTP3
+  {
     ev_signal_init(&reopen_log_signalev, signal_cb, REOPEN_LOG_SIGNAL);
     reopen_log_signalev.data = this;
     ev_signal_start(loop, &reopen_log_signalev);
@@ -211,6 +237,12 @@ struct WorkerProcess {
 
     ev_child_stop(loop, &worker_process_childev);
 
+#ifdef ENABLE_HTTP3
+    if (quic_ipc_fd != -1) {
+      close(quic_ipc_fd);
+    }
+#endif // ENABLE_HTTP3
+
     if (ipc_fd != -1) {
       shutdown(ipc_fd, SHUT_WR);
       close(ipc_fd);
@@ -232,6 +264,10 @@ struct WorkerProcess {
   struct ev_loop *loop;
   pid_t worker_pid;
   int ipc_fd;
+#ifdef ENABLE_HTTP3
+  int quic_ipc_fd;
+  std::vector<std::array<uint8_t, SHRPX_QUIC_CID_PREFIXLEN>> cid_prefixes;
+#endif // ENABLE_HTTP3
 };
 
 namespace {
@@ -454,8 +490,8 @@ void exec_binary() {
   auto &listenerconf = config->conn.listener;
 
   // 2 for ENV_ORIG_PID and terminal nullptr.
-  auto envp =
-      std::make_unique<char *[]>(envlen + listenerconf.addrs.size() + 2);
+  auto envp = std::make_unique<char *[]>(envlen + listenerconf.addrs.size() +
+                                         worker_processes.size() + 2);
   size_t envidx = 0;
 
   std::vector<ImmutableString> fd_envs;
@@ -483,6 +519,24 @@ void exec_binary() {
   ipc_fd_str += util::utos(config->pid);
   envp[envidx++] = const_cast<char *>(ipc_fd_str.c_str());
 
+#ifdef ENABLE_HTTP3
+  std::vector<ImmutableString> quic_lwps;
+  for (size_t i = 0; i < worker_processes.size(); ++i) {
+    auto &wp = worker_processes[i];
+    auto s = ENV_QUIC_WORKER_PROCESS_PREFIX.str();
+    s += util::utos(i + 1);
+    s += '=';
+    s += util::utos(wp->quic_ipc_fd);
+    for (auto &cid_prefix : wp->cid_prefixes) {
+      s += ',';
+      s += util::format_hex(cid_prefix);
+    }
+
+    quic_lwps.emplace_back(s);
+    envp[envidx++] = const_cast<char *>(quic_lwps.back().c_str());
+  }
+#endif // ENABLE_HTTP3
+
   for (size_t i = 0; i < envlen; ++i) {
     auto env = StringRef{environ[i]};
     if (util::starts_with(env, ENV_ACCEPT_PREFIX) ||
@@ -491,7 +545,8 @@ void exec_binary() {
         util::starts_with(env, ENV_PORT) ||
         util::starts_with(env, ENV_UNIX_FD) ||
         util::starts_with(env, ENV_UNIX_PATH) ||
-        util::starts_with(env, ENV_ORIG_PID)) {
+        util::starts_with(env, ENV_ORIG_PID) ||
+        util::starts_with(env, ENV_QUIC_WORKER_PROCESS_PREFIX)) {
       continue;
     }
 
@@ -1103,6 +1158,86 @@ pid_t get_orig_pid_from_env() {
 }
 } // namespace
 
+#ifdef ENABLE_HTTP3
+namespace {
+std::vector<QUICLingeringWorkerProcess>
+    inherited_quic_lingering_worker_processes;
+} // namespace
+
+namespace {
+std::vector<QUICLingeringWorkerProcess>
+get_inherited_quic_lingering_worker_process_from_env() {
+  std::vector<QUICLingeringWorkerProcess> iwps;
+
+  for (size_t i = 1;; ++i) {
+    auto name = ENV_QUIC_WORKER_PROCESS_PREFIX.str();
+    name += util::utos(i);
+    auto env = getenv(name.c_str());
+    if (!env) {
+      break;
+    }
+
+    if (LOG_ENABLED(INFO)) {
+      LOG(INFO) << "Read env " << name << "=" << env;
+    }
+
+    auto envend = env + strlen(env);
+
+    auto end_fd = std::find(env, envend, ',');
+    if (end_fd == envend) {
+      continue;
+    }
+
+    auto fd =
+        util::parse_uint(reinterpret_cast<const uint8_t *>(env), end_fd - env);
+    if (fd == -1) {
+      LOG(WARN) << "Could not parse file descriptor from "
+                << StringRef{env, static_cast<size_t>(end_fd - env)};
+      continue;
+    }
+
+    if (LOG_ENABLED(INFO)) {
+      LOG(INFO) << "Inherit worker process QUIC IPC socket fd=" << fd;
+    }
+
+    util::make_socket_closeonexec(fd);
+
+    std::vector<std::array<uint8_t, SHRPX_QUIC_CID_PREFIXLEN>> cid_prefixes;
+
+    auto p = end_fd + 1;
+    for (;;) {
+      auto end = std::find(p, envend, ',');
+
+      auto hex_cid_prefix = StringRef{p, end};
+      if (hex_cid_prefix.size() != SHRPX_QUIC_CID_PREFIXLEN * 2 ||
+          !util::is_hex_string(hex_cid_prefix)) {
+        LOG(WARN) << "Found invalid CID prefix=" << hex_cid_prefix;
+        break;
+      }
+
+      if (LOG_ENABLED(INFO)) {
+        LOG(INFO) << "Inherit worker process CID prefix=" << hex_cid_prefix;
+      }
+
+      cid_prefixes.emplace_back();
+
+      util::decode_hex(std::begin(cid_prefixes.back()), hex_cid_prefix);
+
+      if (end == envend) {
+        break;
+      }
+
+      p = end + 1;
+    }
+
+    iwps.emplace_back(std::move(cid_prefixes), fd);
+  }
+
+  return iwps;
+}
+} // namespace
+#endif // ENABLE_HTTP3
+
 namespace {
 int create_acceptor_socket(Config *config, std::vector<InheritedAddr> &iaddrs) {
   std::array<char, STRERROR_BUFSIZE> errbuf;
@@ -1180,14 +1315,97 @@ int create_ipc_socket(std::array<int, 2> &ipc_fd) {
 }
 } // namespace
 
+#ifdef ENABLE_HTTP3
+namespace {
+int create_quic_ipc_socket(std::array<int, 2> &quic_ipc_fd) {
+  std::array<char, STRERROR_BUFSIZE> errbuf;
+  int rv;
+
+  rv = socketpair(AF_UNIX, SOCK_DGRAM, 0, quic_ipc_fd.data());
+  if (rv == -1) {
+    auto error = errno;
+    LOG(WARN) << "Failed to create socket pair to communicate worker process: "
+              << xsi_strerror(error, errbuf.data(), errbuf.size());
+    return -1;
+  }
+
+  for (auto fd : quic_ipc_fd) {
+    util::make_socket_nonblocking(fd);
+  }
+
+  return 0;
+}
+} // namespace
+
+namespace {
+int generate_cid_prefix(
+    std::vector<std::array<uint8_t, SHRPX_QUIC_CID_PREFIXLEN>> &cid_prefixes,
+    const Config *config) {
+  auto &apiconf = config->api;
+
+  size_t num_cid_prefix;
+  if (config->single_thread) {
+    num_cid_prefix = 1;
+  } else {
+    num_cid_prefix = config->num_worker;
+
+    // API endpoint occupies the one dedicated worker thread.
+    // Although such worker never gets QUIC traffic, we create CID
+    // prefix for it to make code a bit simpler.
+    if (apiconf.enabled) {
+      ++num_cid_prefix;
+    }
+  }
+
+  cid_prefixes.resize(num_cid_prefix);
+
+  for (auto &cid_prefix : cid_prefixes) {
+    if (create_cid_prefix(cid_prefix.data()) != 0) {
+      return -1;
+    }
+  }
+
+  return 0;
+}
+} // namespace
+
+namespace {
+std::vector<QUICLingeringWorkerProcess>
+collect_quic_lingering_worker_processes() {
+  std::vector<QUICLingeringWorkerProcess> quic_lwps{
+      std::begin(inherited_quic_lingering_worker_processes),
+      std::end(inherited_quic_lingering_worker_processes)};
+
+  for (auto &wp : worker_processes) {
+    quic_lwps.emplace_back(wp->cid_prefixes, wp->quic_ipc_fd);
+  }
+
+  return quic_lwps;
+}
+} // namespace
+#endif // ENABLE_HTTP3
+
 namespace {
 // Creates worker process, and returns PID of worker process.  On
 // success, file descriptor for IPC (send only) is assigned to
 // |main_ipc_fd|.  In child process, we will close file descriptors
 // which are inherited from previous configuration/process, but not
 // used in the current configuration.
-pid_t fork_worker_process(int &main_ipc_fd,
-                          const std::vector<InheritedAddr> &iaddrs) {
+pid_t fork_worker_process(
+    int &main_ipc_fd
+#ifdef ENABLE_HTTP3
+    ,
+    int &wp_quic_ipc_fd
+#endif // ENABLE_HTTP3
+    ,
+    const std::vector<InheritedAddr> &iaddrs
+#ifdef ENABLE_HTTP3
+    ,
+    const std::vector<std::array<uint8_t, SHRPX_QUIC_CID_PREFIXLEN>>
+        &cid_prefixes,
+    const std::vector<QUICLingeringWorkerProcess> &quic_lwps
+#endif // ENABLE_HTTP3
+) {
   std::array<char, STRERROR_BUFSIZE> errbuf;
   int rv;
   sigset_t oldset;
@@ -1198,6 +1416,15 @@ pid_t fork_worker_process(int &main_ipc_fd,
   if (rv != 0) {
     return -1;
   }
+
+#ifdef ENABLE_HTTP3
+  std::array<int, 2> quic_ipc_fd;
+
+  rv = create_quic_ipc_socket(quic_ipc_fd);
+  if (rv != 0) {
+    return -1;
+  }
+#endif // ENABLE_HTTP3
 
   rv = shrpx_signal_block_all(&oldset);
   if (rv != 0) {
@@ -1226,6 +1453,20 @@ pid_t fork_worker_process(int &main_ipc_fd,
       util::make_socket_closeonexec(addr.fd);
     }
 
+#ifdef ENABLE_HTTP3
+    util::make_socket_closeonexec(quic_ipc_fd[0]);
+
+    for (auto &lwp : quic_lwps) {
+      util::make_socket_closeonexec(lwp.quic_ipc_fd);
+    }
+
+    for (auto &wp : worker_processes) {
+      util::make_socket_closeonexec(wp->quic_ipc_fd);
+      // Do not close quic_ipc_fd.
+      wp->quic_ipc_fd = -1;
+    }
+#endif // ENABLE_HTTP3
+
     // Remove all WorkerProcesses to stop any registered watcher on
     // default loop.
     worker_process_remove_all();
@@ -1249,9 +1490,19 @@ pid_t fork_worker_process(int &main_ipc_fd,
 
     if (!config->single_process) {
       close(ipc_fd[1]);
+#ifdef ENABLE_HTTP3
+      close(quic_ipc_fd[1]);
+#endif // ENABLE_HTTP3
     }
 
-    WorkerProcessConfig wpconf{ipc_fd[0]};
+    WorkerProcessConfig wpconf{
+        .ipc_fd = ipc_fd[0],
+#ifdef ENABLE_HTTP3
+        .cid_prefixes = cid_prefixes,
+        .quic_ipc_fd = quic_ipc_fd[0],
+        .quic_lingering_worker_processes = quic_lwps,
+#endif // ENABLE_HTTP3
+    };
     rv = worker_process_event_loop(&wpconf);
     if (rv != 0) {
       LOG(FATAL) << "Worker process returned error";
@@ -1292,13 +1543,23 @@ pid_t fork_worker_process(int &main_ipc_fd,
   if (pid == -1) {
     close(ipc_fd[0]);
     close(ipc_fd[1]);
+#ifdef ENABLE_HTTP3
+    close(quic_ipc_fd[0]);
+    close(quic_ipc_fd[1]);
+#endif // ENABLE_HTTP3
 
     return -1;
   }
 
   close(ipc_fd[0]);
+#ifdef ENABLE_HTTP3
+  close(quic_ipc_fd[0]);
+#endif // ENABLE_HTTP3
 
   main_ipc_fd = ipc_fd[1];
+#ifdef ENABLE_HTTP3
+  wp_quic_ipc_fd = quic_ipc_fd[1];
+#endif // ENABLE_HTTP3
 
   LOG(NOTICE) << "Worker process [" << pid << "] spawned";
 
@@ -1345,17 +1606,50 @@ int event_loop() {
 
   auto orig_pid = get_orig_pid_from_env();
 
+#ifdef ENABLE_HTTP3
+  inherited_quic_lingering_worker_processes =
+      get_inherited_quic_lingering_worker_process_from_env();
+#endif // ENABLE_HTTP3
+
   auto loop = ev_default_loop(config->ev_loop_flags);
 
   int ipc_fd = 0;
+#ifdef ENABLE_HTTP3
+  int quic_ipc_fd = 0;
 
-  auto pid = fork_worker_process(ipc_fd, {});
+  auto quic_lwps = collect_quic_lingering_worker_processes();
+
+  std::vector<std::array<uint8_t, SHRPX_QUIC_CID_PREFIXLEN>> cid_prefixes;
+
+  if (generate_cid_prefix(cid_prefixes, config) != 0) {
+    return -1;
+  }
+#endif // ENABLE_HTTP3
+
+  auto pid = fork_worker_process(
+      ipc_fd
+#ifdef ENABLE_HTTP3
+      ,
+      quic_ipc_fd
+#endif // ENABLE_HTTP3
+      ,
+      {}
+#ifdef ENABLE_HTTP3
+      ,
+      cid_prefixes, quic_lwps
+#endif // ENABLE_HTTP3
+  );
 
   if (pid == -1) {
     return -1;
   }
 
-  worker_process_add(std::make_unique<WorkerProcess>(loop, pid, ipc_fd));
+  worker_process_add(std::make_unique<WorkerProcess>(loop, pid, ipc_fd
+#ifdef ENABLE_HTTP3
+                                                     ,
+                                                     quic_ipc_fd, cid_prefixes
+#endif // ENABLE_HTTP3
+                                                     ));
 
   // Write PID file when we are ready to accept connection from peer.
   // This makes easier to write restart script for nghttpx.  Because
@@ -1548,6 +1842,42 @@ void fill_default_config(Config *config) {
         downstreamconf.option, downstreamconf.encoder_dynamic_table_size);
   }
 
+#ifdef ENABLE_HTTP3
+  auto &quicconf = config->quic;
+  {
+    auto &upstreamconf = quicconf.upstream;
+
+    {
+      auto &timeoutconf = upstreamconf.timeout;
+      timeoutconf.idle = 30_s;
+    }
+
+    auto &bpfconf = quicconf.bpf;
+    bpfconf.prog_file = StringRef::from_lit(PKGLIBDIR "/reuseport_kern.o");
+
+    upstreamconf.congestion_controller = NGTCP2_CC_ALGO_CUBIC;
+
+    // TODO Not really nice to generate random key here, but fine for
+    // now.
+    if (RAND_bytes(upstreamconf.cid_encryption_key.data(),
+                   upstreamconf.cid_encryption_key.size()) != 1) {
+      assert(0);
+      abort();
+    }
+  }
+
+  auto &http3conf = config->http3;
+  {
+    auto &upstreamconf = http3conf.upstream;
+
+    upstreamconf.max_concurrent_streams = 100;
+    upstreamconf.window_size = 256_k;
+    upstreamconf.connection_window_size = 1_m;
+    upstreamconf.max_window_size = 6_m;
+    upstreamconf.max_connection_window_size = 8_m;
+  }
+#endif // ENABLE_HTTP3
+
   auto &loggingconf = config->logging;
   {
     auto &accessconf = loggingconf.access;
@@ -1577,6 +1907,9 @@ void fill_default_config(Config *config) {
       auto &timeoutconf = upstreamconf.timeout;
       // Read timeout for HTTP2 upstream connection
       timeoutconf.http2_read = 3_min;
+
+      // Read timeout for HTTP3 upstream connection
+      timeoutconf.http3_read = 3_min;
 
       // Read timeout for non-HTTP2 upstream connection
       timeoutconf.read = 1_min;
@@ -1632,7 +1965,7 @@ void print_version(std::ostream &out) {
 namespace {
 void print_usage(std::ostream &out) {
   out << R"(Usage: nghttpx [OPTIONS]... [<PRIVATE_KEY> <CERT>]
-A reverse proxy for HTTP/2, and HTTP/1.)"
+A reverse proxy for HTTP/3, HTTP/2, and HTTP/1.)"
       << std::endl;
 }
 } // namespace
@@ -1740,12 +2073,13 @@ Connections:
               "affinity=<METHOD>",    "dns",    "redirect-if-not-tls",
               "upgrade-scheme",                        "mruby=<PATH>",
               "read-timeout=<DURATION>",   "write-timeout=<DURATION>",
-              "group=<GROUP>",  "group-weight=<N>", and  "weight=<N>".
-              The  parameter  consists   of  keyword,  and  optionally
-              followed by  "=" and value.  For  example, the parameter
-              "proto=h2"  consists of  the keyword  "proto" and  value
-              "h2".  The parameter "tls" consists of the keyword "tls"
-              without value.  Each parameter is described as follows.
+              "group=<GROUP>",  "group-weight=<N>", "weight=<N>",  and
+              "dnf".    The  parameter   consists   of  keyword,   and
+              optionally followed by "="  and value.  For example, the
+              parameter "proto=h2" consists of the keyword "proto" and
+              value "h2".  The parameter "tls" consists of the keyword
+              "tls"  without value.   Each parameter  is described  as
+              follows.
 
               The backend application protocol  can be specified using
               optional  "proto"   parameter,  and   in  the   form  of
@@ -1876,6 +2210,13 @@ Connections:
               weight  becomes  1.   "weight"  is  ignored  if  session
               affinity is enabled.
 
+              If "dnf" parameter is  specified, an incoming request is
+              not forwarded to a backend  and just consumed along with
+              the  request body  (actually a  backend server  never be
+              contacted).  It  is expected  that the HTTP  response is
+              generated by mruby  script (see "mruby=<PATH>" parameter
+              above).  "dnf" is an abbreviation of "do not forward".
+
               Since ";" and ":" are  used as delimiter, <PATTERN> must
               not contain  these characters.  In order  to include ":"
               in  <PATTERN>,  one  has  to  specify  "%3A"  (which  is
@@ -1920,6 +2261,12 @@ Connections:
               To accept  PROXY protocol  version 1  and 2  on frontend
               connection,  specify  "proxyproto" parameter.   This  is
               disabled by default.
+
+              To  receive   HTTP/3  (QUIC)  traffic,   specify  "quic"
+              parameter.  It  makes nghttpx listen on  UDP port rather
+              than  TCP   port.   UNIX   domain  socket,   "api",  and
+              "healthmon"  parameters  cannot   be  used  with  "quic"
+              parameter.
 
               Default: *,3000
   --backlog=<N>
@@ -2053,6 +2400,10 @@ Timeout:
               Specify read timeout for HTTP/2 frontend connection.
               Default: )"
       << util::duration_str(config->conn.upstream.timeout.http2_read) << R"(
+  --frontend-http3-read-timeout=<DURATION>
+              Specify read timeout for HTTP/3 frontend connection.
+              Default: )"
+      << util::duration_str(config->conn.upstream.timeout.http3_read) << R"(
   --frontend-read-timeout=<DURATION>
               Specify read timeout for HTTP/1.1 frontend connection.
               Default: )"
@@ -2435,12 +2786,13 @@ SSL/TLS:
               consider   to  use   --client-no-http2-cipher-block-list
               option.  But be aware its implications.
   --tls-no-postpone-early-data
-              By default,  nghttpx postpones forwarding  HTTP requests
-              sent in early data, including those sent in partially in
-              it, until TLS handshake finishes.  If all backend server
-              recognizes "Early-Data" header  field, using this option
-              makes nghttpx  not postpone  forwarding request  and get
-              full potential of 0-RTT data.
+              By  default,   except  for  QUIC   connections,  nghttpx
+              postpones forwarding  HTTP requests sent in  early data,
+              including  those  sent in  partially  in  it, until  TLS
+              handshake  finishes.  If  all backend  server recognizes
+              "Early-Data"  header  field,  using  this  option  makes
+              nghttpx  not postpone  forwarding request  and get  full
+              potential of 0-RTT data.
   --tls-max-early-data=<SIZE>
               Sets  the  maximum  amount  of 0-RTT  data  that  server
               accepts.
@@ -2704,13 +3056,18 @@ HTTP:
               Rewrite  host and  :authority header  fields in  default
               mode.  When  --http2-proxy is  used, these  headers will
               not be altered regardless of this option.
-  --altsvc=<PROTOID,PORT[,HOST,[ORIGIN]]>
+  --altsvc=<PROTOID,PORT[,HOST,[ORIGIN[,PARAMS]]]>
               Specify   protocol  ID,   port,  host   and  origin   of
-              alternative service.  <HOST>  and <ORIGIN> are optional.
-              They  are advertised  in  alt-svc header  field only  in
-              HTTP/1.1  frontend.  This  option can  be used  multiple
-              times   to   specify  multiple   alternative   services.
-              Example: --altsvc=h2,443
+              alternative service.  <HOST>,  <ORIGIN> and <PARAMS> are
+              optional.   Empty <HOST>  and <ORIGIN>  are allowed  and
+              they  are treated  as  nothing is  specified.  They  are
+              advertised  in alt-svc  header  field  only in  HTTP/1.1
+              frontend.   This option  can be  used multiple  times to
+              specify multiple alternative services.
+              Example: --altsvc="h2,443,,,ma=3600; persist=1'
+  --http2-altsvc=<PROTOID,PORT[,HOST,[ORIGIN[,PARAMS]]]>
+              Just like --altsvc option, but  this altsvc is only sent
+              in HTTP/2 frontend.
   --add-request-header=<HEADER>
               Specify additional header field to add to request header
               set.  This  option just  appends header field  and won't
@@ -2846,7 +3203,95 @@ Scripting:
               Ignore mruby compile error  for per-pattern mruby script
               file.  If error  occurred, it is treated as  if no mruby
               file were specified for the pattern.
+)";
 
+#ifdef ENABLE_HTTP3
+  out << R"(
+HTTP/3 and QUIC:
+  --frontend-quic-idle-timeout=<DURATION>
+              Specify an idle timeout for QUIC connection.
+              Default: )"
+      << util::duration_str(config->quic.upstream.timeout.idle) << R"(
+  --frontend-quic-debug-log
+              Output QUIC debug log to /dev/stderr.
+  --quic-bpf-program-file=<PATH>
+              Specify a path to  eBPF program file reuseport_kern.o to
+              direct  an  incoming  QUIC  UDP datagram  to  a  correct
+              socket.
+              Default: )"
+      << config->quic.bpf.prog_file << R"(
+  --frontend-quic-early-data
+              Enable early data on frontend QUIC connections.  nghttpx
+              sends "Early-Data" header field to a backend server if a
+              request is received in early  data and handshake has not
+              finished.  All backend servers should deal with possibly
+              replayed requests.
+  --frontend-quic-qlog-dir=<DIR>
+              Specify a  directory where  a qlog  file is  written for
+              frontend QUIC  connections.  A qlog file  is created per
+              each QUIC  connection.  The  file name is  ISO8601 basic
+              format, followed by "-", server Source Connection ID and
+              ".qlog".
+  --frontend-quic-require-token
+              Require an address validation  token for a frontend QUIC
+              connection.   Server sends  a token  in Retry  packet or
+              NEW_TOKEN frame in the previous connection.
+  --frontend-quic-congestion-controller=<CC>
+              Specify a congestion controller algorithm for a frontend
+              QUIC  connection.   <CC>  should be  either  "cubic"  or
+              "bbr".
+              Default: )"
+      << (config->quic.upstream.congestion_controller == NGTCP2_CC_ALGO_CUBIC
+              ? "cubic"
+              : "bbr")
+      << R"(
+  --frontend-quic-connection-id-encryption-key=<HEXSTRING>
+              Specify  Connection ID  encryption key.   The encryption
+              key must  be 16  bytes, and  it must  be encoded  in hex
+              string  (which is  32 bytes  long).  If  this option  is
+              omitted, new key is generated.  In order to survive QUIC
+              connection in a configuration  reload event, old and new
+              configuration must  have this option and  share the same
+              key.
+  --no-quic-bpf
+              Disable eBPF.
+  --frontend-http3-window-size=<SIZE>
+              Sets  the  per-stream  initial  window  size  of  HTTP/3
+              frontend connection.
+              Default: )"
+      << util::utos_unit(config->http3.upstream.window_size) << R"(
+  --frontend-http3-connection-window-size=<SIZE>
+              Sets the  per-connection window size of  HTTP/3 frontend
+              connection.
+              Default: )"
+      << util::utos_unit(config->http3.upstream.connection_window_size) << R"(
+  --frontend-http3-max-window-size=<SIZE>
+              Sets  the  maximum  per-stream  window  size  of  HTTP/3
+              frontend connection.  The window  size is adjusted based
+              on the receiving rate of stream data.  The initial value
+              is the  value specified  by --frontend-http3-window-size
+              and the window size grows up to <SIZE> bytes.
+              Default: )"
+      << util::utos_unit(config->http3.upstream.max_window_size) << R"(
+  --frontend-http3-max-connection-window-size=<SIZE>
+              Sets the  maximum per-connection  window size  of HTTP/3
+              frontend connection.  The window  size is adjusted based
+              on the receiving rate of stream data.  The initial value
+              is         the         value        specified         by
+              --frontend-http3-connection-window-size  and the  window
+              size grows up to <SIZE> bytes.
+              Default: )"
+      << util::utos_unit(config->http3.upstream.max_connection_window_size)
+      << R"(
+  --frontend-http3-max-concurrent-streams=<N>
+              Set the maximum number of  the concurrent streams in one
+              frontend HTTP/3 connection.
+              Default: )"
+      << config->http3.upstream.max_concurrent_streams << R"(
+)";
+#endif // ENABLE_HTTP3
+
+  out << R"(
 Misc:
   --conf=<PATH>
               Load  configuration  from   <PATH>.   Please  note  that
@@ -3027,8 +3472,10 @@ int process_options(Config *config,
     addr.port = 3000;
     addr.tls = true;
     addr.family = AF_INET;
+    addr.index = 0;
     listenerconf.addrs.push_back(addr);
     addr.family = AF_INET6;
+    addr.index = 1;
     listenerconf.addrs.push_back(std::move(addr));
   }
 
@@ -3059,9 +3506,12 @@ int process_options(Config *config,
     return -1;
   }
 
+  std::array<char, util::max_hostport> hostport_buf;
+
   auto &proxy = config->downstream_http_proxy;
   if (!proxy.host.empty()) {
-    auto hostport = util::make_hostport(StringRef{proxy.host}, proxy.port);
+    auto hostport = util::make_hostport(std::begin(hostport_buf),
+                                        StringRef{proxy.host}, proxy.port);
     if (resolve_hostname(&proxy.addr, proxy.host.c_str(), proxy.port,
                          AF_UNSPEC) == -1) {
       LOG(FATAL) << "Resolving backend HTTP proxy address failed: " << hostport;
@@ -3074,7 +3524,8 @@ int process_options(Config *config,
   {
     auto &memcachedconf = tlsconf.session_cache.memcached;
     if (!memcachedconf.host.empty()) {
-      auto hostport = util::make_hostport(StringRef{memcachedconf.host},
+      auto hostport = util::make_hostport(std::begin(hostport_buf),
+                                          StringRef{memcachedconf.host},
                                           memcachedconf.port);
       if (resolve_hostname(&memcachedconf.addr, memcachedconf.host.c_str(),
                            memcachedconf.port, memcachedconf.family) == -1) {
@@ -3095,7 +3546,8 @@ int process_options(Config *config,
   {
     auto &memcachedconf = tlsconf.ticket.memcached;
     if (!memcachedconf.host.empty()) {
-      auto hostport = util::make_hostport(StringRef{memcachedconf.host},
+      auto hostport = util::make_hostport(std::begin(hostport_buf),
+                                          StringRef{memcachedconf.host},
                                           memcachedconf.port);
       if (resolve_hostname(&memcachedconf.addr, memcachedconf.host.c_str(),
                            memcachedconf.port, memcachedconf.family) == -1) {
@@ -3147,6 +3599,16 @@ int process_options(Config *config,
 
   config->http2.upstream.callbacks = create_http2_upstream_callbacks();
   config->http2.downstream.callbacks = create_http2_downstream_callbacks();
+
+  if (!config->http.altsvcs.empty()) {
+    config->http.altsvc_header_value =
+        http::create_altsvc_header_value(config->balloc, config->http.altsvcs);
+  }
+
+  if (!config->http.http2_altsvcs.empty()) {
+    config->http.http2_altsvc_header_value = http::create_altsvc_header_value(
+        config->balloc, config->http.http2_altsvcs);
+  }
 
   return 0;
 }
@@ -3210,13 +3672,37 @@ void reload_config(WorkerProcess *wp) {
   auto loop = ev_default_loop(new_config->ev_loop_flags);
 
   int ipc_fd = 0;
+#ifdef ENABLE_HTTP3
+  int quic_ipc_fd = 0;
+
+  auto quic_lwps = collect_quic_lingering_worker_processes();
+
+  std::vector<std::array<uint8_t, SHRPX_QUIC_CID_PREFIXLEN>> cid_prefixes;
+
+  if (generate_cid_prefix(cid_prefixes, new_config.get()) != 0) {
+    close_not_inherited_fd(new_config.get(), iaddrs);
+    return;
+  }
+#endif // ENABLE_HTTP3
 
   // fork_worker_process and forked child process assumes new
   // configuration can be obtained from get_config().
 
   auto old_config = replace_config(std::move(new_config));
 
-  auto pid = fork_worker_process(ipc_fd, iaddrs);
+  auto pid = fork_worker_process(ipc_fd
+#ifdef ENABLE_HTTP3
+                                 ,
+                                 quic_ipc_fd
+#endif // ENABLE_HTTP3
+
+                                 ,
+                                 iaddrs
+#ifdef ENABLE_HTTP3
+                                 ,
+                                 cid_prefixes, quic_lwps
+#endif // ENABLE_HTTP3
+  );
 
   if (pid == -1) {
     LOG(ERROR) << "Failed to process new configuration";
@@ -3235,7 +3721,12 @@ void reload_config(WorkerProcess *wp) {
   // We no longer use signals for this worker.
   last_wp->shutdown_signal_watchers();
 
-  worker_process_add(std::make_unique<WorkerProcess>(loop, pid, ipc_fd));
+  worker_process_add(std::make_unique<WorkerProcess>(loop, pid, ipc_fd
+#ifdef ENABLE_HTTP3
+                                                     ,
+                                                     quic_ipc_fd, cid_prefixes
+#endif // ENABLE_HTTP3
+                                                     ));
 
   if (!get_config()->pid_file.empty()) {
     save_pid();
@@ -3534,6 +4025,34 @@ int main(int argc, char **argv) {
         {SHRPX_OPT_NO_HTTP2_CIPHER_BLOCK_LIST.c_str(), no_argument, &flag, 167},
         {SHRPX_OPT_CLIENT_NO_HTTP2_CIPHER_BLOCK_LIST.c_str(), no_argument,
          &flag, 168},
+        {SHRPX_OPT_QUIC_BPF_PROGRAM_FILE.c_str(), required_argument, &flag,
+         169},
+        {SHRPX_OPT_NO_QUIC_BPF.c_str(), no_argument, &flag, 170},
+        {SHRPX_OPT_HTTP2_ALTSVC.c_str(), required_argument, &flag, 171},
+        {SHRPX_OPT_FRONTEND_HTTP3_READ_TIMEOUT.c_str(), required_argument,
+         &flag, 172},
+        {SHRPX_OPT_FRONTEND_QUIC_IDLE_TIMEOUT.c_str(), required_argument, &flag,
+         173},
+        {SHRPX_OPT_FRONTEND_QUIC_DEBUG_LOG.c_str(), no_argument, &flag, 174},
+        {SHRPX_OPT_FRONTEND_HTTP3_WINDOW_SIZE.c_str(), required_argument, &flag,
+         175},
+        {SHRPX_OPT_FRONTEND_HTTP3_CONNECTION_WINDOW_SIZE.c_str(),
+         required_argument, &flag, 176},
+        {SHRPX_OPT_FRONTEND_HTTP3_MAX_WINDOW_SIZE.c_str(), required_argument,
+         &flag, 177},
+        {SHRPX_OPT_FRONTEND_HTTP3_MAX_CONNECTION_WINDOW_SIZE.c_str(),
+         required_argument, &flag, 178},
+        {SHRPX_OPT_FRONTEND_HTTP3_MAX_CONCURRENT_STREAMS.c_str(),
+         required_argument, &flag, 179},
+        {SHRPX_OPT_FRONTEND_QUIC_EARLY_DATA.c_str(), no_argument, &flag, 180},
+        {SHRPX_OPT_FRONTEND_QUIC_QLOG_DIR.c_str(), required_argument, &flag,
+         181},
+        {SHRPX_OPT_FRONTEND_QUIC_REQUIRE_TOKEN.c_str(), no_argument, &flag,
+         182},
+        {SHRPX_OPT_FRONTEND_QUIC_CONGESTION_CONTROLLER.c_str(),
+         required_argument, &flag, 183},
+        {SHRPX_OPT_FRONTEND_QUIC_CONNECTION_ID_ENCRYPTION_KEY.c_str(),
+         required_argument, &flag, 184},
         {nullptr, 0, nullptr, 0}};
 
     int option_index = 0;
@@ -4336,6 +4855,86 @@ int main(int argc, char **argv) {
         // --client-no-http2-cipher-block-list
         cmdcfgs.emplace_back(SHRPX_OPT_CLIENT_NO_HTTP2_CIPHER_BLOCK_LIST,
                              StringRef::from_lit("yes"));
+        break;
+      case 169:
+        // --quic-bpf-program-file
+        cmdcfgs.emplace_back(SHRPX_OPT_QUIC_BPF_PROGRAM_FILE,
+                             StringRef{optarg});
+        break;
+      case 170:
+        // --no-quic-bpf
+        cmdcfgs.emplace_back(SHRPX_OPT_NO_QUIC_BPF, StringRef::from_lit("yes"));
+        break;
+      case 171:
+        // --http2-altsvc
+        cmdcfgs.emplace_back(SHRPX_OPT_HTTP2_ALTSVC, StringRef{optarg});
+        break;
+      case 172:
+        // --frontend-http3-read-timeout
+        cmdcfgs.emplace_back(SHRPX_OPT_FRONTEND_HTTP3_READ_TIMEOUT,
+                             StringRef{optarg});
+        break;
+      case 173:
+        // --frontend-quic-idle-timeout
+        cmdcfgs.emplace_back(SHRPX_OPT_FRONTEND_QUIC_IDLE_TIMEOUT,
+                             StringRef{optarg});
+        break;
+      case 174:
+        // --frontend-quic-debug-log
+        cmdcfgs.emplace_back(SHRPX_OPT_FRONTEND_QUIC_DEBUG_LOG,
+                             StringRef::from_lit("yes"));
+        break;
+      case 175:
+        // --frontend-http3-window-size
+        cmdcfgs.emplace_back(SHRPX_OPT_FRONTEND_HTTP3_WINDOW_SIZE,
+                             StringRef{optarg});
+        break;
+      case 176:
+        // --frontend-http3-connection-window-size
+        cmdcfgs.emplace_back(SHRPX_OPT_FRONTEND_HTTP3_CONNECTION_WINDOW_SIZE,
+                             StringRef{optarg});
+        break;
+      case 177:
+        // --frontend-http3-max-window-size
+        cmdcfgs.emplace_back(SHRPX_OPT_FRONTEND_HTTP3_MAX_WINDOW_SIZE,
+                             StringRef{optarg});
+        break;
+      case 178:
+        // --frontend-http3-max-connection-window-size
+        cmdcfgs.emplace_back(
+            SHRPX_OPT_FRONTEND_HTTP3_MAX_CONNECTION_WINDOW_SIZE,
+            StringRef{optarg});
+        break;
+      case 179:
+        // --frontend-http3-max-concurrent-streams
+        cmdcfgs.emplace_back(SHRPX_OPT_FRONTEND_HTTP3_MAX_CONCURRENT_STREAMS,
+                             StringRef{optarg});
+        break;
+      case 180:
+        // --frontend-quic-early-data
+        cmdcfgs.emplace_back(SHRPX_OPT_FRONTEND_QUIC_EARLY_DATA,
+                             StringRef::from_lit("yes"));
+        break;
+      case 181:
+        // --frontend-quic-qlog-dir
+        cmdcfgs.emplace_back(SHRPX_OPT_FRONTEND_QUIC_QLOG_DIR,
+                             StringRef{optarg});
+        break;
+      case 182:
+        // --frontend-quic-require-token
+        cmdcfgs.emplace_back(SHRPX_OPT_FRONTEND_QUIC_REQUIRE_TOKEN,
+                             StringRef::from_lit("yes"));
+        break;
+      case 183:
+        // --frontend-quic-congestion-controller
+        cmdcfgs.emplace_back(SHRPX_OPT_FRONTEND_QUIC_CONGESTION_CONTROLLER,
+                             StringRef{optarg});
+        break;
+      case 184:
+        // --frontend-quic-connection-id-encryption-key
+        cmdcfgs.emplace_back(
+            SHRPX_OPT_FRONTEND_QUIC_CONNECTION_ID_ENCRYPTION_KEY,
+            StringRef{optarg});
         break;
       default:
         break;
