@@ -370,10 +370,6 @@ public:
 
   const uint8_t *get_cid_prefix() const;
 
-  void set_quic_secret(const std::shared_ptr<QUICSecret> &secret);
-
-  const std::shared_ptr<QUICSecret> &get_quic_secret() const;
-
 #  ifdef HAVE_LIBBPF
   bool should_attach_bpf() const;
 
@@ -412,7 +408,6 @@ private:
   std::array<uint8_t, SHRPX_QUIC_CID_PREFIXLEN> cid_prefix_;
   std::vector<UpstreamAddr> quic_upstream_addrs_;
   std::vector<std::unique_ptr<QUICListener>> quic_listeners_;
-  std::shared_ptr<QUICSecret> quic_secret_;
 #endif // ENABLE_HTTP3
 
   std::shared_ptr<DownstreamConfig> downstreamconf_;
@@ -467,8 +462,8 @@ void downstream_failure(DownstreamAddr *addr, const Address *raddr);
 #ifdef ENABLE_HTTP3
 // Creates unpredictable SHRPX_QUIC_CID_PREFIXLEN bytes sequence which
 // is used as a prefix of QUIC Connection ID.  This function returns
-// -1 on failure.
-int create_cid_prefix(uint8_t *cid_prefix);
+// -1 on failure.  |server_id| must be 2 bytes long.
+int create_cid_prefix(uint8_t *cid_prefix, const uint8_t *server_id);
 #endif // ENABLE_HTTP3
 
 } // namespace shrpx

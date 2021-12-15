@@ -40,6 +40,7 @@
 #include "shrpx_quic.h"
 #include "shrpx_worker.h"
 #include "shrpx_http.h"
+#include "shrpx_connection_handler.h"
 #ifdef HAVE_MRUBY
 #  include "shrpx_mruby.h"
 #endif // HAVE_MRUBY
@@ -117,6 +118,7 @@ size_t downstream_queue_size(Worker *worker) {
 
 Http3Upstream::Http3Upstream(ClientHandler *handler)
     : handler_{handler},
+      max_udp_payload_size_{SHRPX_QUIC_MAX_UDP_PAYLOAD_SIZE},
       qlog_fd_{-1},
       hashed_scid_{},
       conn_{nullptr},
@@ -217,21 +219,17 @@ int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
   auto upstream = static_cast<Http3Upstream *>(user_data);
   auto handler = upstream->get_client_handler();
   auto worker = handler->get_worker();
+  auto conn_handler = worker->get_connection_handler();
+  auto &qkms = conn_handler->get_quic_keying_materials();
+  auto &qkm = qkms->keying_materials.front();
 
-  auto config = get_config();
-  auto &quicconf = config->quic;
-
-  if (generate_encrypted_quic_connection_id(
-          *cid, cidlen, worker->get_cid_prefix(),
-          quicconf.upstream.cid_encryption_key.data()) != 0) {
+  if (generate_quic_connection_id(*cid, cidlen, worker->get_cid_prefix(),
+                                  qkm.id, qkm.cid_encryption_key.data()) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  auto &quic_secret = worker->get_quic_secret();
-  auto &secret = quic_secret->stateless_reset_secret;
-
-  if (generate_quic_stateless_reset_token(token, *cid, secret.data(),
-                                          secret.size()) != 0) {
+  if (generate_quic_stateless_reset_token(token, *cid, qkm.secret.data(),
+                                          qkm.secret.size()) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -482,16 +480,26 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 int Http3Upstream::handshake_completed() {
+  handler_->set_alpn_from_conn();
+
+  auto alpn = handler_->get_alpn();
+  if (alpn.empty()) {
+    ULOG(ERROR, this) << "NO ALPN was negotiated";
+    return -1;
+  }
+
   std::array<uint8_t, NGTCP2_CRYPTO_MAX_REGULAR_TOKENLEN> token;
   size_t tokenlen;
 
   auto path = ngtcp2_conn_get_path(conn_);
   auto worker = handler_->get_worker();
-  auto &quic_secret = worker->get_quic_secret();
-  auto &secret = quic_secret->token_secret;
+  auto conn_handler = worker->get_connection_handler();
+  auto &qkms = conn_handler->get_quic_keying_materials();
+  auto &qkm = qkms->keying_materials.front();
 
   if (generate_token(token.data(), tokenlen, path->remote.addr,
-                     path->remote.addrlen, secret.data()) != 0) {
+                     path->remote.addrlen, qkm.secret.data(),
+                     qkm.secret.size()) != 0) {
     return 0;
   }
 
@@ -513,6 +521,7 @@ int Http3Upstream::init(const UpstreamAddr *faddr, const Address &remote_addr,
   int rv;
 
   auto worker = handler_->get_worker();
+  auto conn_handler = worker->get_connection_handler();
 
   auto callbacks = ngtcp2_callbacks{
       nullptr, // client_initial
@@ -557,11 +566,14 @@ int Http3Upstream::init(const UpstreamAddr *faddr, const Address &remote_addr,
   auto &quicconf = config->quic;
   auto &http3conf = config->http3;
 
+  auto &qkms = conn_handler->get_quic_keying_materials();
+  auto &qkm = qkms->keying_materials.front();
+
   ngtcp2_cid scid;
 
-  if (generate_encrypted_quic_connection_id(
-          scid, SHRPX_QUIC_SCIDLEN, worker->get_cid_prefix(),
-          quicconf.upstream.cid_encryption_key.data()) != 0) {
+  if (generate_quic_connection_id(scid, SHRPX_QUIC_SCIDLEN,
+                                  worker->get_cid_prefix(), qkm.id,
+                                  qkm.cid_encryption_key.data()) != 0) {
     return -1;
   }
 
@@ -581,6 +593,8 @@ int Http3Upstream::init(const UpstreamAddr *faddr, const Address &remote_addr,
   }
 
   settings.initial_ts = quic_timestamp();
+  settings.initial_rtt = static_cast<ngtcp2_tstamp>(
+      quicconf.upstream.initial_rtt * NGTCP2_SECONDS);
   settings.cc_algo = quicconf.upstream.congestion_controller;
   settings.max_window = http3conf.upstream.max_connection_window_size;
   settings.max_stream_window = http3conf.upstream.max_window_size;
@@ -600,6 +614,40 @@ int Http3Upstream::init(const UpstreamAddr *faddr, const Address &remote_addr,
   params.max_idle_timeout = static_cast<ngtcp2_tstamp>(
       quicconf.upstream.timeout.idle * NGTCP2_SECONDS);
 
+#ifdef OPENSSL_IS_BORINGSSL
+  if (quicconf.upstream.early_data) {
+    ngtcp2_transport_params early_data_params{
+        .initial_max_stream_data_bidi_local =
+            params.initial_max_stream_data_bidi_local,
+        .initial_max_stream_data_bidi_remote =
+            params.initial_max_stream_data_bidi_remote,
+        .initial_max_stream_data_uni = params.initial_max_stream_data_uni,
+        .initial_max_data = params.initial_max_data,
+        .initial_max_streams_bidi = params.initial_max_streams_bidi,
+        .initial_max_streams_uni = params.initial_max_streams_uni,
+    };
+
+    // TODO include HTTP/3 SETTINGS
+
+    std::array<uint8_t, 128> quic_early_data_ctx;
+
+    auto quic_early_data_ctxlen = ngtcp2_encode_transport_params(
+        quic_early_data_ctx.data(), quic_early_data_ctx.size(),
+        NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &early_data_params);
+
+    assert(quic_early_data_ctxlen > 0);
+    assert(static_cast<size_t>(quic_early_data_ctxlen) <=
+           quic_early_data_ctx.size());
+
+    if (SSL_set_quic_early_data_context(handler_->get_ssl(),
+                                        quic_early_data_ctx.data(),
+                                        quic_early_data_ctxlen) != 1) {
+      ULOG(ERROR, this) << "SSL_set_quic_early_data_context failed";
+      return -1;
+    }
+  }
+#endif // OPENSSL_IS_BORINGSSL
+
   if (odcid) {
     params.original_dcid = *odcid;
     params.retry_scid = initial_hd.dcid;
@@ -608,12 +656,8 @@ int Http3Upstream::init(const UpstreamAddr *faddr, const Address &remote_addr,
     params.original_dcid = initial_hd.dcid;
   }
 
-  auto &quic_secret = worker->get_quic_secret();
-  auto &stateless_reset_secret = quic_secret->stateless_reset_secret;
-
-  rv = generate_quic_stateless_reset_token(params.stateless_reset_token, scid,
-                                           stateless_reset_secret.data(),
-                                           stateless_reset_secret.size());
+  rv = generate_quic_stateless_reset_token(
+      params.stateless_reset_token, scid, qkm.secret.data(), qkm.secret.size());
   if (rv != 0) {
     ULOG(ERROR, this) << "generate_quic_stateless_reset_token failed";
     return -1;
@@ -664,7 +708,8 @@ int Http3Upstream::on_write() {
 int Http3Upstream::write_streams() {
   std::array<nghttp3_vec, 16> vec;
   std::array<uint8_t, 64_k> buf;
-  auto max_udp_payload_size = ngtcp2_conn_get_path_max_udp_payload_size(conn_);
+  auto max_udp_payload_size = std::min(
+      max_udp_payload_size_, ngtcp2_conn_get_path_max_udp_payload_size(conn_));
   size_t max_pktcnt =
       std::min(static_cast<size_t>(64_k), ngtcp2_conn_get_send_quantum(conn_)) /
       max_udp_payload_size;
@@ -769,14 +814,15 @@ int Http3Upstream::write_streams() {
 
     if (nwrite == 0) {
       if (bufpos - buf.data()) {
-        quic_send_packet(static_cast<UpstreamAddr *>(prev_ps.path.user_data),
-                         prev_ps.path.remote.addr, prev_ps.path.remote.addrlen,
-                         prev_ps.path.local.addr, prev_ps.path.local.addrlen,
-                         buf.data(), bufpos - buf.data(), max_udp_payload_size);
+        send_packet(static_cast<UpstreamAddr *>(prev_ps.path.user_data),
+                    prev_ps.path.remote.addr, prev_ps.path.remote.addrlen,
+                    prev_ps.path.local.addr, prev_ps.path.local.addrlen,
+                    buf.data(), bufpos - buf.data(), max_udp_payload_size);
 
-        ngtcp2_conn_update_pkt_tx_time(conn_, ts);
         reset_idle_timer();
       }
+
+      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
 
       handler_->get_connection()->wlimit.stopw();
 
@@ -789,16 +835,16 @@ int Http3Upstream::write_streams() {
     if (pktcnt == 0) {
       ngtcp2_path_copy(&prev_ps.path, &ps.path);
     } else if (!ngtcp2_path_eq(&prev_ps.path, &ps.path)) {
-      quic_send_packet(static_cast<UpstreamAddr *>(prev_ps.path.user_data),
-                       prev_ps.path.remote.addr, prev_ps.path.remote.addrlen,
-                       prev_ps.path.local.addr, prev_ps.path.local.addrlen,
-                       buf.data(), bufpos - buf.data() - nwrite,
-                       max_udp_payload_size);
+      send_packet(static_cast<UpstreamAddr *>(prev_ps.path.user_data),
+                  prev_ps.path.remote.addr, prev_ps.path.remote.addrlen,
+                  prev_ps.path.local.addr, prev_ps.path.local.addrlen,
+                  buf.data(), bufpos - buf.data() - nwrite,
+                  max_udp_payload_size);
 
-      quic_send_packet(static_cast<UpstreamAddr *>(ps.path.user_data),
-                       ps.path.remote.addr, ps.path.remote.addrlen,
-                       ps.path.local.addr, ps.path.local.addrlen,
-                       bufpos - nwrite, nwrite, max_udp_payload_size);
+      send_packet(static_cast<UpstreamAddr *>(ps.path.user_data),
+                  ps.path.remote.addr, ps.path.remote.addrlen,
+                  ps.path.local.addr, ps.path.local.addrlen, bufpos - nwrite,
+                  nwrite, max_udp_payload_size);
 
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       reset_idle_timer();
@@ -810,10 +856,10 @@ int Http3Upstream::write_streams() {
 
     if (++pktcnt == max_pktcnt ||
         static_cast<size_t>(nwrite) < max_udp_payload_size) {
-      quic_send_packet(static_cast<UpstreamAddr *>(ps.path.user_data),
-                       ps.path.remote.addr, ps.path.remote.addrlen,
-                       ps.path.local.addr, ps.path.local.addrlen, buf.data(),
-                       bufpos - buf.data(), max_udp_payload_size);
+      send_packet(static_cast<UpstreamAddr *>(ps.path.user_data),
+                  ps.path.remote.addr, ps.path.remote.addrlen,
+                  ps.path.local.addr, ps.path.local.addrlen, buf.data(),
+                  bufpos - buf.data(), max_udp_payload_size);
 
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       reset_idle_timer();
@@ -823,10 +869,9 @@ int Http3Upstream::write_streams() {
       return 0;
     }
 #else  // !UDP_SEGMENT
-    quic_send_packet(static_cast<UpstreamAddr *>(ps.path.user_data),
-                     ps.path.remote.addr, ps.path.remote.addrlen,
-                     ps.path.local.addr, ps.path.local.addrlen, buf.data(),
-                     bufpos - buf.data(), 0);
+    send_packet(static_cast<UpstreamAddr *>(ps.path.user_data),
+                ps.path.remote.addr, ps.path.remote.addrlen, ps.path.local.addr,
+                ps.path.local.addrlen, buf.data(), bufpos - buf.data(), 0);
 
     if (++pktcnt == max_pktcnt) {
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
@@ -1366,10 +1411,9 @@ void Http3Upstream::on_handler_delete() {
 
     conn_close_.resize(nwrite);
 
-    quic_send_packet(static_cast<UpstreamAddr *>(ps.path.user_data),
-                     ps.path.remote.addr, ps.path.remote.addrlen,
-                     ps.path.local.addr, ps.path.local.addrlen,
-                     conn_close_.data(), nwrite, 0);
+    send_packet(static_cast<UpstreamAddr *>(ps.path.user_data),
+                ps.path.remote.addr, ps.path.remote.addrlen, ps.path.local.addr,
+                ps.path.local.addrlen, conn_close_.data(), nwrite, 0);
   }
 
   auto d =
@@ -1672,6 +1716,29 @@ int Http3Upstream::on_read(const UpstreamAddr *faddr,
   return 0;
 }
 
+int Http3Upstream::send_packet(const UpstreamAddr *faddr,
+                               const sockaddr *remote_sa, size_t remote_salen,
+                               const sockaddr *local_sa, size_t local_salen,
+                               const uint8_t *data, size_t datalen,
+                               size_t gso_size) {
+  auto rv = quic_send_packet(faddr, remote_sa, remote_salen, local_sa,
+                             local_salen, data, datalen, gso_size);
+  switch (rv) {
+  case 0:
+    return 0;
+    // With GSO, sendmsg may fail with EINVAL if UDP payload is too
+    // large.
+  case -EINVAL:
+  case -EMSGSIZE:
+    max_udp_payload_size_ = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
+    break;
+  default:
+    break;
+  }
+
+  return -1;
+}
+
 int Http3Upstream::handle_error() {
   if (ngtcp2_conn_is_in_closing_period(conn_)) {
     return -1;
@@ -1710,10 +1777,9 @@ int Http3Upstream::handle_error() {
 
   conn_close_.resize(nwrite);
 
-  quic_send_packet(static_cast<UpstreamAddr *>(ps.path.user_data),
-                   ps.path.remote.addr, ps.path.remote.addrlen,
-                   ps.path.local.addr, ps.path.local.addrlen,
-                   conn_close_.data(), nwrite, 0);
+  send_packet(static_cast<UpstreamAddr *>(ps.path.user_data),
+              ps.path.remote.addr, ps.path.remote.addrlen, ps.path.local.addr,
+              ps.path.local.addrlen, conn_close_.data(), nwrite, 0);
 
   return -1;
 }
@@ -1834,6 +1900,7 @@ int Http3Upstream::http_acked_stream_data(Downstream *downstream,
 
   auto body = downstream->get_response_buf();
   auto drained = body->drain_mark(datalen);
+  (void)drained;
 
   assert(datalen == drained);
 
