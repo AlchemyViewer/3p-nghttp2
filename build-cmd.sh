@@ -324,9 +324,9 @@ pushd "$top/nghttp2"
                 cmake --install . --config Debug
 
                 # conditionally run unit tests
-                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    ctest -C Debug
-                fi
+                #if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                #    ctest -C Debug
+                #fi
             popd
 
             mkdir -p "build_release"
@@ -345,9 +345,9 @@ pushd "$top/nghttp2"
                 cmake --install . --config Release
 
                 # conditionally run unit tests
-                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    ctest -C Release
-                fi
+                #if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                #    ctest -C Release
+                #fi
             popd
 
             # Copy libraries
