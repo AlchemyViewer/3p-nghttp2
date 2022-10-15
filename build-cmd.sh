@@ -51,45 +51,48 @@ restore_dylibs ()
     done
 }
 
+# Create staging dirs
+mkdir -p "$stage/include/nghttp2"
+mkdir -p "${stage}/lib/debug"
+mkdir -p "${stage}/lib/release"
+
 pushd "$top/nghttp2"
     case "$AUTOBUILD_PLATFORM" in
         windows*)
             load_vsvars
 
-            # Create staging dirs
-            mkdir -p "$stage/include/nghttp2"
-            mkdir -p "${stage}/lib/debug"
-            mkdir -p "${stage}/lib/release"
-
             # Debug Build
             mkdir -p "build_debug"
             pushd "build_debug"
-                cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -DENABLE_LIB_ONLY=ON \
-                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$stage")" \
+                cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM"\
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/debug" \
+                    -DENABLE_LIB_ONLY=ON \
                     -DENABLE_SHARED_LIB=OFF \
                     -DENABLE_STATIC_LIB=ON
 
                 cmake --build . --config Debug --clean-first
-
-                cp -a lib/Debug/nghttp2.lib "$stage/lib/debug/"
+                cmake --install . --config Debug
             popd
 
             # Release Build
             mkdir -p "build_release"
             pushd "build_release"
-                cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -DENABLE_LIB_ONLY=ON \
-                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$stage")" \
+                cmake .. -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM"\
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/release" \
+                    -DENABLE_LIB_ONLY=ON \
                     -DENABLE_SHARED_LIB=OFF \
                     -DENABLE_STATIC_LIB=ON
 
                 cmake --build . --config Release --clean-first
-                
-                cp -a lib/Release/nghttp2.lib "$stage/lib/release/"
-
-                cp -a lib/includes/nghttp2/nghttp2ver.h "$stage/include/nghttp2"
+                cmake --install . --config Release
             popd
 
-            cp "$NGHTTP2_VERSION_HEADER_DIR"/nghttp2.h "$stage/include/nghttp2/"
+            # Copy libraries
+            cp -a ${stage}/debug/lib/*.lib ${stage}/lib/debug/
+            cp -a ${stage}/release/lib/*.lib ${stage}/lib/release/
+
+            # copy headers
+            cp -a $stage/release/include/nghttp2/* $stage/include/nghttp2/
         ;;
 
         darwin*)
@@ -305,59 +308,54 @@ pushd "$top/nghttp2"
             DEBUG_CPPFLAGS="-DPIC"
             RELEASE_CPPFLAGS="-DPIC"
 
-            JOBS=`cat /proc/cpuinfo | grep processor | wc -l`
+            mkdir -p "build_debug"
+            pushd "build_debug"
+                CFLAGS="$DEBUG_CFLAGS" \
+                CPPFLAGS="$DEBUG_CPPFLAGS" \
+                cmake .. -GNinja -DBUILD_SHARED_LIBS:BOOL=OFF \
+                    -DCMAKE_BUILD_TYPE="Debug" \
+                    -DCMAKE_C_FLAGS="$DEBUG_CFLAGS" \
+                    -DCMAKE_INSTALL_PREFIX="$stage/debug" \
+                    -DENABLE_LIB_ONLY=ON \
+                    -DENABLE_SHARED_LIB=OFF \
+                    -DENABLE_STATIC_LIB=ON
 
-            # Handle any deliberate platform targeting
-            if [ -z "${TARGET_CPPFLAGS:-}" ]; then
-                # Remove sysroot contamination from build environment
-                unset CPPFLAGS
-            else
-                # Incorporate special pre-processing flags
-                export CPPFLAGS="$TARGET_CPPFLAGS"
-            fi
+                cmake --build . --config Debug
+                cmake --install . --config Debug
 
-            # Fix up path for pkgconfig
-            if [ -d "$stage/packages/lib/release/pkgconfig" ]; then
-                fix_pkgconfig_prefix "$stage/packages"
-            fi
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Debug
+                fi
+            popd
 
-            OLD_PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-}"
+            mkdir -p "build_release"
+            pushd "build_release"
+                CFLAGS="$RELEASE_CFLAGS" \
+                CPPFLAGS="$RELEASE_CPPFLAGS" \
+                cmake .. -GNinja -DBUILD_SHARED_LIBS:BOOL=OFF \
+                    -DCMAKE_BUILD_TYPE="Release" \
+                    -DCMAKE_C_FLAGS="$RELEASE_CFLAGS" \
+                    -DCMAKE_INSTALL_PREFIX="$stage/release" \
+                    -DENABLE_LIB_ONLY=ON \
+                    -DENABLE_SHARED_LIB=OFF \
+                    -DENABLE_STATIC_LIB=ON
 
-            # force regenerate autoconf
-            autoreconf -fvi
+                cmake --build . --config Release
+                cmake --install . --config Release
 
-            # debug configure and build
-            export PKG_CONFIG_PATH="$stage/packages/lib/debug/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Release
+                fi
+            popd
 
-            CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" ./configure --enable-lib-only --enable-static --disable-shared \
-                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/debug"
-            make -j$JOBS
-            make check
-            make install DESTDIR="$stage"
+            # Copy libraries
+            cp -a ${stage}/debug/lib/*.a ${stage}/lib/debug/
+            cp -a ${stage}/release/lib/*.a ${stage}/lib/release/
 
-            # conditionally run unit tests
-            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                make check
-            fi
-
-            make distclean
-
-            # Release configure and build
-            export PKG_CONFIG_PATH="$stage/packages/lib/release/pkgconfig:${OLD_PKG_CONFIG_PATH}"
-
-            CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" ./configure --enable-lib-only --enable-static --disable-shared \
-                --prefix="\${AUTOBUILD_PACKAGES_DIR}" --includedir="\${prefix}/include" --libdir="\${prefix}/lib/release"
-            make -j$JOBS
-            make check
-            make install DESTDIR="$stage"
-
-            # conditionally run unit tests
-            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                make check
-            fi
-
-            make distclean
-
+            # copy headers
+            cp -a $stage/release/include/nghttp2/* $stage/include/nghttp2/
         ;;
     esac
     mkdir -p "$stage/LICENSES"

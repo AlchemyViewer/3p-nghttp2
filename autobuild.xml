@@ -84,9 +84,7 @@ Copyright (c) 2012, 2014, 2015, 2016 nghttp2 contributors</string>
           <key>manifest</key>
           <array>
             <string>lib/debug/*.a</string>
-            <string>lib/debug/pkgconfig/*</string>
             <string>lib/release/*.a</string>
-            <string>lib/release/pkgconfig/*</string>
           </array>
           <key>name</key>
           <string>linux</string>
