@@ -1,499 +1,518 @@
-commit 00399695cb3ea9715162b6a15c0d7b185ac384d2 (HEAD, tag: v1.51.0, origin/master, origin/HEAD, master)
+commit be0491294a63d891bd12b6b1b7e372a45a5d0ffe (HEAD, tag: v1.52.0, origin/master, origin/HEAD, master)
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-13
+AuthorDate: 2023-02-13
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-13
+CommitDate: 2023-02-13
 
     Update manual pages
 
-commit f8e014de40ac67e30882a27189b6d8a9e754de8e
+commit 17d54064d88f92b3f1d107fef1cb011694d5cb81
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-13
+AuthorDate: 2023-02-10
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-13
+CommitDate: 2023-02-12
 
-    Bump package and library versions
+    Bump package version
 
-commit 172159305c0fe5b508a567ba3f05e7e1f85aa33f
+commit d8fb86a987a8259944189c57e1f3243e8543fc4c
 Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-13
+AuthorDate: 2023-02-10
 Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-13
+CommitDate: 2023-02-12
 
     Update AUTHORS
 
-commit aa607875b046e3968bedfb96df8b05f36011d000
-Merge: 5929aeb4 954d49f7
+commit 5967358697c89a2cae2a6e49b2fab782bd423073
+Merge: c597e928 7041b41a
 Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2023-02-12
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-02-12
+
+    Merge pull request #1862 from nghttp2/bump-quictls
+    
+    Bump quictls
+
+commit 7041b41afacb15a0a5013051edf88b280c9ee282
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2023-02-12
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2023-02-12
+
+    Bump quictls
+
+commit c597e928f19fc5acb8be8cef4c0e75bc84aab855
+Merge: b082a6b3 79f261ed
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2023-02-11
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-02-11
+
+    Merge pull request #1861 from nghttp2/simplify-uniform_int_distribution
+    
+    Simplify std::uniform_int_distribution call
+
+commit 79f261edf024b5925ac0cb14bb3ed0197faf7a88
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2023-02-11
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2023-02-11
+
+    Simplify std::uniform_int_distribution call
+
+commit b082a6b3dd8ca0ddf90ba10470fd1c57e492e266
+Merge: 93689845 64b97acc
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2023-02-10
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-02-10
+
+    Merge pull request #1860 from nghttp2/bump-llhttp
+    
+    Bump llhttp to f2e1914b6c59f5cd88f492abc9d8af6be246bc85
+
+commit 64b97acc334bd4ab3e26af680b1331e22ffd4977
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2023-02-10
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2023-02-10
+
+    Bump llhttp to f2e1914b6c59f5cd88f492abc9d8af6be246bc85
+
+commit 936898453d3e8a173aaaa899de66fbed33b0f673
+Merge: 93118d76 62802342
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2023-02-10
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-02-10
+
+    Merge pull request #1859 from nghttp2/bump-libbpf
+    
+    Bump libbpf to v1.1.0
+
+commit 62802342aac93e876105f1c1eecdcaaaf079fb45
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2023-02-10
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2023-02-10
+
+    Bump libbpf to v1.1.0
+
+commit 93118d76f4d2645c2eceff0cefaa551a0051c082
+Merge: 4434fcbd 95b2f946
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2023-02-09
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-02-09
+
+    Merge pull request #1858 from nghttp2/bump-ngtcp2
+    
+    Bump ngtcp2 to v0.13.1
+
+commit 95b2f94671ad0c64c419f52eb345ca7fef4c1b95
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2023-02-09
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2023-02-09
+
+    Bump ngtcp2 to v0.13.1
+
+commit 4434fcbde1522553174e8697f251c2bf8fe8186f
+Merge: 10d52f5a cbcfdaa6
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2023-02-09
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-02-09
+
+    Merge pull request #1857 from nghttp2/nghttpx-fix-tls-write-stall
+    
+    nghttpx: Fix bug that stalls TLS write
+
+commit cbcfdaa6555778a8c52d7d60b787dbd9d6a755ca
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2023-02-06
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2023-02-06
+
+    nghttpx: Fix bug that stalls TLS write
+
+commit 10d52f5a272a94a56ca1b9df8bc8085107f94ee4
+Merge: 0dbcf9c0 92c7593c
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2023-02-02
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-02-02
+
+    Merge pull request #1854 from nghttp2/bump-ngtcp2-dockerfile
+    
+    Bump ngtcp2 in Dockerfile to v0.13.0
+
+commit 92c7593cffa05a35823e18a054ecf761685e544a
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2023-01-31
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2023-01-31
+
+    Bump ngtcp2 in Dockerfile to v0.13.0
+
+commit 0dbcf9c04dc7c53d8048e741cb33eee4e03c9b66
+Merge: 0ba1718e f494e886
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2023-01-31
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-01-31
+
+    Merge pull request #1853 from nghttp2/bump-ngtcp2
+    
+    Bump ngtcp2 to v0.13.0
+
+commit f494e88611a99c31269264451dd7342e5fdb58ce
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2023-01-31
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2023-01-31
+
+    Bump ngtcp2 to v0.13.0
+
+commit 0ba1718e40542d46342e3a0cb69baa0a2212a867
+Merge: a6b0eeac 5c5d978a
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2023-01-30
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-01-30
+
+    Merge pull request #1852 from nghttp2/remove-sphinx-theme-bundle
+    
+    Remove sphinx theme bundle
+
+commit 5c5d978abe5bf14d3b3b82aa40783935b04adc57
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2023-01-30
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2023-01-30
+
+    Remove sphinx theme bundle
+    
+    Remove sphinx theme bundle, and rely on the locally installed theme
+    (e.g., `pip install sphinx_rtd_theme`).
+
+commit a6b0eeacc9f5c095d404832897697eb4951e77b8
+Merge: aea182c5 6993e63a
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2023-01-29
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-01-29
+
+    Merge pull request #1851 from nghttp2/bump-neverbleed
+    
+    Bump neverbleed
+
+commit 6993e63ac486d77c5b96b22a401c836bfee655bb
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2023-01-29
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2023-01-29
+
+    Bump neverbleed
+
+commit aea182c5a4c941eedf2f3d71b03f5cd1b71c419e
+Merge: 05b79290 c78aebf6
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2023-01-29
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-01-29
+
+    Merge pull request #1850 from nghttp2/fix-path-component-resolution
+    
+    src: Fix path component resolution
+
+commit c78aebf68f90e1cd31e09e0e19b2e7e42cde1bfb
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2023-01-29
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2023-01-29
+
+    src: Fix path component resolution
+    
+    Fix path component resolution when '.' is involved.
+
+commit 05b792901933664e7aeb7ebb8c87db81123d484a
+Merge: 5b665b3e b52f96d3
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2022-12-26
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-12-26
+
+    Merge pull request #1849 from nghttp2/remove-unused-function
+    
+    Remove unused function
+
+commit 5b665b3e48858505c347dcfdc2c033dc7b2de39e
+Merge: 5089dcd3 2ca0bb0a
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2022-12-26
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-12-26
+
+    Merge pull request #1848 from nghttp2/remove-src-includes
+    
+    Remove src/includes
+
+commit 5089dcd3f295f364e02c17b515a353a8e6e04e21
+Merge: 30bb4eb8 fa3d1bfc
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2022-12-26
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-12-26
+
+    Merge pull request #1847 from nghttp2/bump-zlib
+    
+    Bump zlib to 1.2.13
+
+commit b52f96d38a5c32b692ecbfbd4c25c49aa684232b
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-12-26
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-12-26
+
+    Remove unused function
+
+commit 2ca0bb0a2fd5faeef0a27c07216f76727981dad2
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-12-26
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-12-26
+
+    Remove src/includes
+
+commit fa3d1bfc8f5d61d05aa85918041ebf7335e361ff
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-12-26
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-12-26
+
+    Bump zlib to 1.2.13
+
+commit 30bb4eb8f27225341fac5067ece6f47d67dc9dc5
+Merge: 2c62572a b4cb3b00
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2022-12-26
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-12-26
+
+    Merge pull request #1846 from nghttp2/remove-python
+    
+    Remove deprecated python bindings
+
+commit b4cb3b0090b704f2461766c455568b311013272f
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-12-24
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-12-26
+
+    Remove deprecated python bindings
+
+commit 2c62572ae19067a853bb9ca2978b222f7185b1ed
+Merge: 42904a58 e6d608b5
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2022-12-26
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-12-26
+
+    Merge pull request #1844 from nghttp2/remove-libnghttp2_asio
+    
+    Remove deprecated libnghttp2_asio
+
+commit 42904a586cf7f091e515661734e6287767d299c7
+Merge: 00a33281 8538e1ec
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2022-12-25
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-12-25
+
+    Merge pull request #1845 from nghttp2/minor-cleanup
+    
+    Minor cleanup
+
+commit 8538e1ec42c5f150213ddc612d5b2268da7364e0
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-12-25
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-12-25
+
+    Minor cleanup
+
+commit e6d608b52242c88e151c1e7e500549976e8abacc
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-12-24
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-12-24
+
+    Remove deprecated libnghttp2_asio
+
+commit 00a33281bec5a6a53fba80df4036d8037957df64
+Merge: 252c425e 7c7ba058
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2022-12-24
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-12-24
+
+    Merge pull request #1843 from nghttp2/bump-ngtcp2
+    
+    Bump ngtcp2 dependencies
+
+commit 7c7ba0586e7b837b3c97bfd196a79e242b8c6e36
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-12-24
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-12-24
+
+    Bump ngtcp2 dependencies
+
+commit 252c425ea69eeb382bf56c20b3644672dd9c2363
+Merge: 5195e8be 525630ae
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2022-12-23
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-12-23
+
+    Merge pull request #1837 from fredizzimo/fix-libevent-component
+    
+    Don't use the unofficial libevent component
+
+commit 525630ae7a02cab36d94733486dcd5a52509a551
+Author:     Fred Sundvik <fsundvik@gmail.com>
+AuthorDate: 2022-12-07
+Commit:     Fred Sundvik <fsundvik@gmail.com>
+CommitDate: 2022-12-07
+
+    Don't use the unofficial libevent component
+
+commit 5195e8be6a44ecd451d8da17c663c267c74c6000
+Merge: b5b18699 358c15e0
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2022-11-24
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-11-24
+
+    Merge pull request #1835 from nghttp2/integration-lint
+    
+    integration: Fix lint errors
+
+commit 358c15e015b0ea96b459c6c93fbde789ef90471f
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-11-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-11-20
+
+    integration: Fix lint errors
+
+commit b5b18699cb6768fa6fba268c345c254c5335b8a4
+Merge: a945c057 44e4475a
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2022-11-20
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-11-20
+
+    Merge pull request #1834 from nghttp2/integration-http-status-code
+    
+    integration: Use HTTP status code constants
+
+commit 44e4475a318007a480c5455326a7434a8df42a9d
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-11-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-11-20
+
+    integration: Use HTTP status code constants
+
+commit a945c057c5955f499edde9ed366934f8cf94e6e3
+Merge: 46602a96 babeddb6
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2022-11-20
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-11-20
+
+    Merge pull request #1833 from nghttp2/integration-h3
+    
+    Integration h3
+
+commit babeddb6499f3baae5bf3befa5f503e615cdacf9
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-11-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-11-20
+
+    nghttpx: HTTPS redirect should not happen with HTTP/3 upstream
+
+commit 2d790edac596da5da361475c949aec3e4ffedbb1
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-11-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-11-20
+
+    integration: Add http3 test which verifies chunked encoding ends prematurely
+
+commit 2bef60a6f4ae42cecc2cfe72a67284322f98c738
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-11-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-11-20
+
+    integration: Add http3 test which verifies response ends before request
+
+commit 17e3bb4ec5d1aaac14441b24a849b6c50590a252
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-11-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-11-20
+
+    integration: Add http3 mruby tests
+
+commit 5e1b1a088309b3475a86f632f216727374a008b2
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-11-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-11-20
+
+    integration: Add http3 affinity cookie test
+
+commit 5b0cbb489248415a250bd4306829ad2cbc9406f5
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-11-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-11-20
+
+    integration: Add http3 HTTPS redirect test
+
+commit 17a5ba4969911987cc0adae834b8079033c4aaa8
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-11-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-11-20
+
+    integration: Add http3 response content-length test
+
+commit 20d95edc5738a0b7b6a5000b1ed39289e5e62895
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-11-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-11-20
+
+    integration: Add http3 via tests
+
+commit 126b5f9d2b64a87b8da8c0b723bc6ffcffdad84c
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2022-11-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2022-11-20
+
+    Add the missing file
+
+commit 46602a961d16d03dbddb6ecd2cd8c16cc63f3ae2
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
 AuthorDate: 2022-11-13
-Commit:     GitHub <noreply@github.com>
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
 CommitDate: 2022-11-13
-
-    Merge pull request #1832 from nghttp2/h3-integration-test
-    
-    Add http3 integration test
-
-commit 954d49f7a0ae1824f205c446157d56e3b4c70428
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-12
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-12
-
-    Add http3 integration test
-
-commit 5929aeb47c9690f1c0a693a56ad80d1f03f45f43
-Merge: 0fb2c6f4 b990df49
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-11-12
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-11-12
-
-    Merge pull request #1831 from nghttp2/bump-ngtcp2
-    
-    Bump ngtcp2
-
-commit b990df49d6588ab200e2b21a1f7037f6c701063d
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-12
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-12
-
-    Bump boringssl
-
-commit 2aa9d61ae228ff0e9dfc898abb18ed7d0df07434
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-12
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-12
-
-    Bump ngtcp2 to v0.11.0
-
-commit 0fb2c6f4f48f03e1f82f9d3087810845e996891a
-Merge: bea6cae0 1c9817af
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-11-12
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-11-12
-
-    Merge pull request #1830 from nghttp2/bump-libbpf
-    
-    Bump libbpf to v1.0.1
-
-commit 1c9817af0d29f04e94f38186feb3f3a3c8d08ddc
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-12
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-12
-
-    Bump libbpf to v1.0.1
-
-commit bea6cae0d560be305f01825a27a214967e38c24a
-Merge: 266a3d84 804ce364
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-11-11
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-11-11
-
-    Merge pull request #1829 from nghttp2/disable-python-bindings
-    
-    Disable python bindings
-
-commit 804ce364bf7b9346641c5ac2f3cdaef27e853218
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-11
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-11
-
-    Disable python bindings properly by default
-    
-    Disable python bindings properly by default.  This commit amends
-    b63705384a3db3f29e0972ad3b3330733d2e6d96.
-
-commit 83d7fb7fdd11454b49ea6674cdfe185c022656b4
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-11
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-11
-
-    Revert "workflow: Disable python bindings"
-    
-    This reverts commit ddd40bae06f93468c0d64c07a0626f8641d16bbd.
-
-commit 266a3d84e47cd17629cdee3f1cecd9940bbea2a2
-Merge: e91de24b b062e9f6
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-11-09
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-11-09
-
-    Merge pull request #1828 from nghttp2/bump-openssl
-    
-    Bump OpenSSL versions
-
-commit e91de24be6ba05b4c1086e2f0ca0ff10d420f859
-Merge: 971d3552 f56448be
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-11-09
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-11-09
-
-    Merge pull request #1827 from nghttp2/bump-llhttp
-    
-    Bump llhttp
-
-commit b062e9f66cc0b29c3d100276623753c371902627
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-09
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-09
-
-    Bump OpenSSL versions
-
-commit f56448be602b70e2dd8542c8b26ae218ef809a5d
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-09
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-09
-
-    Deal with llhttp incompatible changes
-
-commit 17aa7b6a61f9cc5b3f44f56ce72211b054a6c8f6
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-09
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-09
-
-    Bump llhttp to 85dd446419966cafb5a7fdd5031e3113a0768e65
-
-commit 971d3552c7795605479f4bea497dbeb90b3da453
-Merge: cb11cfcd ddd40bae
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-11-09
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-11-09
-
-    Merge pull request #1826 from nghttp2/workflow-disable-python-bindings
-    
-    workflow: Disable python bindings
-
-commit ddd40bae06f93468c0d64c07a0626f8641d16bbd
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-11-09
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-11-09
-
-    workflow: Disable python bindings
-    
-    Disable python bindings because it has been deprecated, and mac OS
-    build with python binding is broken.
-
-commit cb11cfcd2c3d434da91538722a7692fe0ff0d8e9
-Merge: 11632d3c 5eed83ee
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-10-20
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-10-20
-
-    Merge pull request #1822 from vszakats/warnfix
-    
-    add casts to silence implicit conversion warnings
-
-commit 5eed83ee177b95f86eab793660cbea50841dc941
-Author:     Viktor Szakats <commit@vsz.me>
-AuthorDate: 2022-10-19
-Commit:     Viktor Szakats <commit@vsz.me>
-CommitDate: 2022-10-19
-
-    add casts to silence implicit conversion warnings
-    
-    Fixes #1821
-
-commit 11632d3c2c1a6215ab12a80948c99d7733ddd656
-Merge: 3b21fbaf 8c70d9c2
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-10-18
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-10-18
-
-    Merge pull request #1819 from nghttp2/bump-ngtcp2
-    
-    Bump ngtcp2
-
-commit 8c70d9c2e136a1c031a57e56a2d4f93dbaeebc44
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-10-16
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-10-18
-
-    Bump ngtcp2
-
-commit 3b21fbaf0330f3c898762191c651573d9d2eb211
-Merge: 2f71f5c3 5abafb42
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-10-18
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-10-18
-
-    Merge pull request #1818 from nghttp2/fix-nghttpx-affinity-cookie-stickiness
-    
-    nghttpx: Fix affinity-cookie-stickiness parameter handling
-
-commit 5abafb42682fe6c04ad95d9488c732281ad3af95
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-10-18
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-10-18
-
-    nghttpx: Fix affinity-cookie-stickiness parameter handling
-    
-    Fix affinity-cookie-stickiness backend parameter handling.
-    Previously, if 3 backend options are used for the same pattern, and
-    the first one does not have affinity-cookie-stickiness, and the rest
-    of them have affinity-cookie-stickiness=strict, nghttpx wrongly
-    determines that they have inconsistent configurations.
-
-commit 2f71f5c3c9a46123087bc808957db874eceee07d
-Merge: 8e120de5 3f65ab78
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-10-16
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-10-16
-
-    Merge pull request #1816 from nghttp2/update-doc
-    
-    Update doc
-
-commit 3f65ab78711a791978844d6bb13a5f2f81aa677f
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-10-16
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-10-16
-
-    Update doc
-    
-    Remove outdated text
-
-commit 8e120de5bdfff40c88e9fb020df9be7307ba94cd
-Merge: 93f1096d 8a355db8
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-10-04
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-10-04
-
-    Merge pull request #1814 from nghttp2/workflow-bump-compilers
-    
-    Workflow bump compilers
-
-commit 8a355db8d92c983f36e0b5821444f5c084b28397
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-10-04
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-10-04
-
-    Fix compile error with gcc-12
-
-commit 93f1096de397501158d74b26b71fa76dc8588e14
-Merge: f190afd0 61caf66f
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-10-04
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-10-04
-
-    Merge pull request #1813 from nghttp2/test-fix-tz
-    
-    Fix test failure on Linux if tz database is not available
-
-commit f190afd0c0725cc52385dc6a65575df49b796883
-Merge: 6c45e943 c56cda05
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-10-04
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-10-04
-
-    Merge pull request #1812 from nghttp2/update-ubuntu-packages
-    
-    Update Ubuntu packages based on Ubuntu 22.04
-
-commit ebef6b5ced85a91ad75bcfc921fd8b04b0d3ab6e
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-10-04
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-10-04
-
-    workflow: Bump compilers
-
-commit 6c45e943b0a8a94ee1e9000ea263c6671eb31b9b
-Merge: 7380ff35 b6370538
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-10-04
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-10-04
-
-    Merge pull request #1811 from nghttp2/disable-python
-    
-    Disable python bindings by default because it has been deprecated
-
-commit 61caf66f1b002105e5603fba030de57d445330a8
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-10-04
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-10-04
-
-    Fix test failure on Linux if tz database is not available
-
-commit c56cda058e7e8064743da6f12955d9ab73c3b439
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-10-04
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-10-04
-
-    Update Ubuntu packages based on Ubuntu 22.04
-
-commit b63705384a3db3f29e0972ad3b3330733d2e6d96
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-10-04
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-10-04
-
-    Disable python bindings by default because it has been deprecated
-
-commit 7380ff35514f304c466768cc959c6cc881618070
-Merge: 634e65df bfba6764
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-10-02
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-10-02
-
-    Merge pull request #1809 from nghttp2/update-doc-h2-rfc
-    
-    Update README to mention new HTTP/2 RFC
-
-commit bfba6764e07f0b172e7df381a3984f9c8fa635dd
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-10-02
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-10-02
-
-    Update README to mention new HTTP/2 RFC
-
-commit 634e65df64b9dc62208e7d3304f01d85c2b715fa
-Merge: 03636069 011fbf7f
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-09-27
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-09-27
-
-    Merge pull request #1807 from nghttp2/nghttpx-add-missing-exit
-    
-    nghttpx: Add missing DIE()
-
-commit 011fbf7f1041d8f6f4241bbbceba42d89f816b3b
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-09-27
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-09-27
-
-    nghttpx: Add missing DIE()
-
-commit 036360692413f8b3d335140c00ce288fc5c684cb
-Merge: 958d9ac6 40c79223
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-09-26
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-09-26
-
-    Merge pull request #1806 from nghttp2/update-android-build-doc
-    
-    Update android build documentation
-
-commit 40c79223866b1c51383a43231b27d1539fc56f74
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-09-26
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-09-26
-
-    Update android build documentation
-
-commit 958d9ac63b7f4f1b4aa17ad2cd86c84f6fd8a4b5
-Merge: 77449a94 c06f1e99
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-09-26
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-09-26
-
-    Merge pull request #1805 from nghttp2/dockerfile-android-improvements
-    
-    Dockerfile android improvements
-
-commit c06f1e997448bef19ba65afbed5d48e4ea44df7d
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-09-26
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-09-26
-
-    Remove --with-xml-prefix
-
-commit d3381233b10b82a05369b353664bbaf339ff7e05
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-09-26
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-09-26
-
-    Do not create OpenSSL shared library
-
-commit 6d88da58f193d5310cc579c8792a12bc09a69939
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-09-26
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-09-26
-
-    PATH is required by OpenSSL only
-
-commit 77449a9477cb3a3d4c3d53fd2f234dca3f0e70c7
-Merge: dd63d1df 116feb4a
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-09-26
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-09-26
-
-    Merge pull request #1804 from nghttp2/update-dockerfile-android
-    
-    Bump NDK and others to the latest
-
-commit 116feb4a8cf9f0aec85799b66257c72344d4bd87
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-09-25
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-09-25
-
-    Bump NDK and others to the latest
-    
-    The latest nghttp2 release version cannot be built with the latest
-    NDK.  The nghttp2 version in Dockerfile points to master for now.
-
-commit dd63d1df424a3081f3b7eed45183eeaa78435631
-Merge: 4bfd8029 c47fa08b
-Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
-AuthorDate: 2022-09-25
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-09-25
-
-    Merge pull request #1802 from PufferBlue/patch-1
-    
-    Update dependency versions for Dockerfile.android
-
-commit c47fa08b40c3058f5a8b29b0ff1d6f3d019a0ec9
-Author:     PufferOverflow <puffer@puffer.blog>
-AuthorDate: 2022-09-23
-Commit:     GitHub <noreply@github.com>
-CommitDate: 2022-09-23
-
-    Update dependency versions for Dockerfile.android
-
-commit 4bfd802937c2723a1d27b5a3abb415d7f96656dc
-Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-AuthorDate: 2022-09-21
-Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-CommitDate: 2022-09-21
 
     Bump package version
