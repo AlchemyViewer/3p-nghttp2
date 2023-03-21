@@ -613,7 +613,8 @@ int Http3Upstream::init(const UpstreamAddr *faddr, const Address &remote_addr,
   settings.max_stream_window = http3conf.upstream.max_window_size;
   settings.max_tx_udp_payload_size = SHRPX_QUIC_MAX_UDP_PAYLOAD_SIZE;
   settings.rand_ctx.native_handle = &worker->get_randgen();
-  settings.token = ngtcp2_vec{const_cast<uint8_t *>(token), tokenlen};
+  settings.token = token;
+  settings.tokenlen = tokenlen;
 
   ngtcp2_transport_params params;
   ngtcp2_transport_params_default(&params);
@@ -984,15 +985,8 @@ int Http3Upstream::on_downstream_abort_request(Downstream *downstream,
 
 int Http3Upstream::on_downstream_abort_request_with_https_redirect(
     Downstream *downstream) {
-  int rv;
-
-  rv = redirect_to_https(downstream);
-  if (rv != 0) {
-    return -1;
-  }
-
-  handler_->signal_write();
-  return 0;
+  assert(0);
+  abort();
 }
 
 namespace {
@@ -1604,10 +1598,11 @@ int Http3Upstream::on_downstream_reset(Downstream *downstream, bool no_retry) {
 
 fail:
   if (rv == SHRPX_ERR_TLS_REQUIRED) {
-    rv = on_downstream_abort_request_with_https_redirect(downstream);
-  } else {
-    rv = on_downstream_abort_request(downstream, 502);
+    assert(0);
+    abort();
   }
+
+  rv = on_downstream_abort_request(downstream, 502);
   if (rv != 0) {
     shutdown_stream(downstream, NGHTTP3_H3_INTERNAL_ERROR);
   }
@@ -2318,10 +2313,11 @@ void Http3Upstream::initiate_downstream(Downstream *downstream) {
     auto dconn = handler_->get_downstream_connection(rv, downstream);
     if (!dconn) {
       if (rv == SHRPX_ERR_TLS_REQUIRED) {
-        rv = redirect_to_https(downstream);
-      } else {
-        rv = error_reply(downstream, 502);
+        assert(0);
+        abort();
       }
+
+      rv = error_reply(downstream, 502);
       if (rv != 0) {
         shutdown_stream(downstream, NGHTTP3_H3_INTERNAL_ERROR);
       }
@@ -2729,39 +2725,6 @@ int Http3Upstream::shutdown_stream_read(int64_t stream_id,
   }
 
   return 0;
-}
-
-int Http3Upstream::redirect_to_https(Downstream *downstream) {
-  auto &req = downstream->request();
-  if (req.regular_connect_method() || req.scheme != "http") {
-    return error_reply(downstream, 400);
-  }
-
-  auto authority = util::extract_host(req.authority);
-  if (authority.empty()) {
-    return error_reply(downstream, 400);
-  }
-
-  auto &balloc = downstream->get_block_allocator();
-  auto config = get_config();
-  auto &httpconf = config->http;
-
-  StringRef loc;
-  if (httpconf.redirect_https_port == StringRef::from_lit("443")) {
-    loc = concat_string_ref(balloc, StringRef::from_lit("https://"), authority,
-                            req.path);
-  } else {
-    loc = concat_string_ref(balloc, StringRef::from_lit("https://"), authority,
-                            StringRef::from_lit(":"),
-                            httpconf.redirect_https_port, req.path);
-  }
-
-  auto &resp = downstream->response();
-  resp.http_status = 308;
-  resp.fs.add_header_token(StringRef::from_lit("location"), loc, false,
-                           http2::HD_LOCATION);
-
-  return send_reply(downstream, nullptr, 0);
 }
 
 void Http3Upstream::consume(int64_t stream_id, size_t nconsumed) {

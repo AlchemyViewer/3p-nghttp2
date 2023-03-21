@@ -32,11 +32,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
 #if defined(__linux__)
+#include <sys/syscall.h>
 #include <sys/prctl.h>
 #elif defined(__APPLE__)
 #include <sys/ptrace.h>
@@ -107,18 +109,13 @@ static void RSA_set_flags(RSA *r, int flags)
     r->flags |= flags;
 }
 
+#define EVP_PKEY_up_ref(p) CRYPTO_add(&(p)->references, 1, CRYPTO_LOCK_EVP_PKEY)
+
 #endif
 
 #include "neverbleed.h"
 
 enum neverbleed_type { NEVERBLEED_TYPE_ERROR, NEVERBLEED_TYPE_RSA, NEVERBLEED_TYPE_ECDSA };
-
-struct expbuf_t {
-    char *buf;
-    char *start;
-    char *end;
-    size_t capacity;
-};
 
 struct st_neverbleed_rsa_exdata_t {
     neverbleed_t *nb;
@@ -207,12 +204,7 @@ static int read_nbytes(int fd, void *p, size_t sz)
     return 0;
 }
 
-static size_t expbuf_size(struct expbuf_t *buf)
-{
-    return buf->end - buf->start;
-}
-
-static void expbuf_dispose(struct expbuf_t *buf)
+static void iobuf_dispose(neverbleed_iobuf_t *buf)
 {
     if (buf->capacity != 0)
         OPENSSL_cleanse(buf->buf, buf->capacity);
@@ -220,7 +212,7 @@ static void expbuf_dispose(struct expbuf_t *buf)
     memset(buf, 0, sizeof(*buf));
 }
 
-static void expbuf_reserve(struct expbuf_t *buf, size_t extra)
+static void iobuf_reserve(neverbleed_iobuf_t *buf, size_t extra)
 {
     char *n;
 
@@ -238,41 +230,41 @@ static void expbuf_reserve(struct expbuf_t *buf, size_t extra)
     buf->buf = n;
 }
 
-static void expbuf_push_num(struct expbuf_t *buf, size_t v)
+static void iobuf_push_num(neverbleed_iobuf_t *buf, size_t v)
 {
-    expbuf_reserve(buf, sizeof(v));
+    iobuf_reserve(buf, sizeof(v));
     memcpy(buf->end, &v, sizeof(v));
     buf->end += sizeof(v);
 }
 
-static void expbuf_push_str(struct expbuf_t *buf, const char *s)
+static void iobuf_push_str(neverbleed_iobuf_t *buf, const char *s)
 {
     size_t l = strlen(s) + 1;
-    expbuf_reserve(buf, l);
+    iobuf_reserve(buf, l);
     memcpy(buf->end, s, l);
     buf->end += l;
 }
 
-static void expbuf_push_bytes(struct expbuf_t *buf, const void *p, size_t l)
+static void iobuf_push_bytes(neverbleed_iobuf_t *buf, const void *p, size_t l)
 {
-    expbuf_push_num(buf, l);
-    expbuf_reserve(buf, l);
+    iobuf_push_num(buf, l);
+    iobuf_reserve(buf, l);
     memcpy(buf->end, p, l);
     buf->end += l;
 }
 
-static int expbuf_shift_num(struct expbuf_t *buf, size_t *v)
+static int iobuf_shift_num(neverbleed_iobuf_t *buf, size_t *v)
 {
-    if (expbuf_size(buf) < sizeof(*v))
+    if (neverbleed_iobuf_size(buf) < sizeof(*v))
         return -1;
     memcpy(v, buf->start, sizeof(*v));
     buf->start += sizeof(*v);
     return 0;
 }
 
-static char *expbuf_shift_str(struct expbuf_t *buf)
+static char *iobuf_shift_str(neverbleed_iobuf_t *buf)
 {
-    char *nul = memchr(buf->start, '\0', expbuf_size(buf)), *ret;
+    char *nul = memchr(buf->start, '\0', neverbleed_iobuf_size(buf)), *ret;
     if (nul == NULL)
         return NULL;
     ret = buf->start;
@@ -280,22 +272,22 @@ static char *expbuf_shift_str(struct expbuf_t *buf)
     return ret;
 }
 
-static void *expbuf_shift_bytes(struct expbuf_t *buf, size_t *l)
+static void *iobuf_shift_bytes(neverbleed_iobuf_t *buf, size_t *l)
 {
     void *ret;
-    if (expbuf_shift_num(buf, l) != 0)
+    if (iobuf_shift_num(buf, l) != 0)
         return NULL;
-    if (expbuf_size(buf) < *l)
+    if (neverbleed_iobuf_size(buf) < *l)
         return NULL;
     ret = buf->start;
     buf->start += *l;
     return ret;
 }
 
-static int expbuf_write(struct expbuf_t *buf, int fd)
+static int iobuf_write(neverbleed_iobuf_t *buf, int fd)
 {
     struct iovec vecs[2] = {{NULL}};
-    size_t bufsz = expbuf_size(buf);
+    size_t bufsz = neverbleed_iobuf_size(buf);
     int vecindex;
     ssize_t r;
 
@@ -323,17 +315,52 @@ static int expbuf_write(struct expbuf_t *buf, int fd)
     return 0;
 }
 
-static int expbuf_read(struct expbuf_t *buf, int fd)
+static int iobuf_read(neverbleed_iobuf_t *buf, int fd)
 {
     size_t sz;
-
     if (read_nbytes(fd, &sz, sizeof(sz)) != 0)
         return -1;
-    expbuf_reserve(buf, sz);
+    iobuf_reserve(buf, sz);
     if (read_nbytes(fd, buf->end, sz) != 0)
         return -1;
     buf->end += sz;
     return 0;
+}
+
+static void iobuf_transaction_write(neverbleed_iobuf_t *buf, struct st_neverbleed_thread_data_t *thdata)
+{
+    if (iobuf_write(buf, thdata->fd) == -1) {
+        if (errno != 0) {
+            dief("write error (%d) %s", errno, strerror(errno));
+        } else {
+            dief("connection closed by daemon");
+        }
+    }
+}
+
+static void iobuf_transaction_read(neverbleed_iobuf_t *buf, struct st_neverbleed_thread_data_t *thdata)
+{
+    iobuf_dispose(buf);
+    if (iobuf_read(buf, thdata->fd) == -1) {
+        if (errno != 0) {
+            dief("read error (%d) %s", errno, strerror(errno));
+        } else {
+            dief("connection closed by daemon");
+        }
+    }
+}
+
+/**
+ * Sends a request and reads a response.
+ */
+static void iobuf_transaction(neverbleed_iobuf_t *buf, struct st_neverbleed_thread_data_t *thdata)
+{
+    if (neverbleed_transaction_cb != NULL) {
+        neverbleed_transaction_cb(buf);
+    } else {
+        iobuf_transaction_write(buf, thdata);
+        iobuf_transaction_read(buf, thdata);
+    }
 }
 
 #if !defined(NAME_MAX) || defined(__linux__)
@@ -372,15 +399,17 @@ static void unlink_dir(const char *path)
     rmdir(path);
 }
 
-void dispose_thread_data(void *_thdata)
+static void dispose_thread_data(void *_thdata)
 {
     struct st_neverbleed_thread_data_t *thdata = _thdata;
+
     assert(thdata->fd >= 0);
     close(thdata->fd);
     thdata->fd = -1;
+    free(thdata);
 }
 
-struct st_neverbleed_thread_data_t *get_thread_data(neverbleed_t *nb)
+static struct st_neverbleed_thread_data_t *get_thread_data(neverbleed_t *nb)
 {
     struct st_neverbleed_thread_data_t *thdata;
     pid_t self_pid = getpid();
@@ -417,6 +446,24 @@ struct st_neverbleed_thread_data_t *get_thread_data(neverbleed_t *nb)
     return thdata;
 }
 
+int neverbleed_get_fd(neverbleed_t *nb)
+{
+    struct st_neverbleed_thread_data_t *thdata = get_thread_data(nb);
+    return thdata->fd;
+}
+
+void neverbleed_transaction_read(neverbleed_t *nb, neverbleed_iobuf_t *buf)
+{
+    struct st_neverbleed_thread_data_t *thdata = get_thread_data(nb);
+    iobuf_transaction_read(buf, thdata);
+}
+
+void neverbleed_transaction_write(neverbleed_t *nb, neverbleed_iobuf_t *buf)
+{
+    struct st_neverbleed_thread_data_t *thdata = get_thread_data(nb);
+    iobuf_transaction_write(buf, thdata);
+}
+
 static void get_privsep_data(const RSA *rsa, struct st_neverbleed_rsa_exdata_t **exdata,
                              struct st_neverbleed_thread_data_t **thdata)
 {
@@ -426,159 +473,106 @@ static void get_privsep_data(const RSA *rsa, struct st_neverbleed_rsa_exdata_t *
     *thdata = get_thread_data((*exdata)->nb);
 }
 
-static const size_t default_reserved_size = 8192;
-
-struct key_slots {
-    size_t size;
-    size_t reserved_size;
-    /* bit array slots:
-     *   1-bit slot available
-     *   0-bit slot unavailable
-     */
-    uint8_t *bita_avail;
-};
-
 static struct {
     struct {
         pthread_mutex_t lock;
-        RSA **keys;
-        struct key_slots rsa_slots;
-        EC_KEY **ecdsa_keys;
-        struct key_slots ecdsa_slots;
+        /**
+         * if the slot is use contains a non-NULL key; if not in use, contains the index of the next empty slot or SIZE_MAX if there
+         * are no more empty slots
+         */
+        union {
+            EVP_PKEY *pkey;
+            size_t next_empty;
+        } *slots;
+        size_t num_slots;
+        size_t first_empty;
     } keys;
     neverbleed_t *nb;
-} daemon_vars = {{PTHREAD_MUTEX_INITIALIZER}};
+} daemon_vars = {{.lock = PTHREAD_MUTEX_INITIALIZER, .first_empty = SIZE_MAX}};
 
 static RSA *daemon_get_rsa(size_t key_index)
 {
-    RSA *rsa;
+    RSA *rsa = NULL;
 
     pthread_mutex_lock(&daemon_vars.keys.lock);
-    rsa = daemon_vars.keys.keys[key_index];
-    if (rsa)
-        RSA_up_ref(rsa);
+    if (key_index < daemon_vars.keys.num_slots)
+        rsa = EVP_PKEY_get1_RSA(daemon_vars.keys.slots[key_index].pkey);
     pthread_mutex_unlock(&daemon_vars.keys.lock);
 
     return rsa;
 }
 
-/*
- *  Returns an available slot in bit array B
- *  or if not found, returns SIZE_MAX
- */
-static size_t bita_ffirst(const uint8_t *b, const size_t tot, size_t bits)
+size_t allocate_slot(void)
 {
-    if (bits >= tot)
-        return SIZE_MAX;
-
-    uint64_t w = *((uint64_t *) b);
-    /* __builtin_ffsll returns one plus the index of the least significant 1-bit, or zero if not found */
-    uint32_t r = __builtin_ffsll(w);
-    if (r)
-        return bits + r - 1; /* adjust result */
-
-    return bita_ffirst(&b[8], tot, bits + 64);
-}
-
-/*
- * bit operation helpers for the bit-array in key_slots
- */
-#define BITMASK(b) (1 << ((b) % CHAR_BIT))
-#define BITBYTE(b) ((b) / CHAR_BIT)
-#define BITSET(a, b) ((a)[BITBYTE(b)] |= BITMASK(b))
-#define BITUNSET(a, b) ((a)[BITBYTE(b)] &= ~BITMASK(b))
-#define BITBYTES(nb) ((nb + CHAR_BIT - 1) / CHAR_BIT)
-#define BITCHECK(a, b) ((a)[BITBYTE(b)] & BITMASK(b))
-
-static void adjust_slots_reserved_size(int type, struct key_slots *slots)
-{
-#define ROUND2WORD(n) (n + 64 - 1 - (n + 64 - 1) % 64)
-    if (!slots->reserved_size || (slots->size >= slots->reserved_size)) {
-        size_t size = slots->reserved_size ? ROUND2WORD((size_t)(slots->reserved_size * 0.50) + slots->reserved_size)
-                : default_reserved_size;
-#undef ROUND2WORD
-
-        switch (type) {
-        case NEVERBLEED_TYPE_RSA:
-            if ((daemon_vars.keys.keys = realloc(daemon_vars.keys.keys, sizeof(*daemon_vars.keys.keys) * size)) == NULL)
-                dief("no memory");
-            break;
-        case NEVERBLEED_TYPE_ECDSA:
-            if ((daemon_vars.keys.ecdsa_keys = realloc(daemon_vars.keys.ecdsa_keys, sizeof(*daemon_vars.keys.ecdsa_keys) * size)) == NULL)
-                dief("no memory");
-            break;
-        default:
-            dief("invalid type adjusting reserved");
-        }
-
-        uint8_t *b;
-        if ((b = realloc(slots->bita_avail, BITBYTES(size))) == NULL)
+    /* expand if all slots are in use */
+    if (daemon_vars.keys.first_empty == SIZE_MAX) {
+        size_t new_capacity = (daemon_vars.keys.num_slots < 4 ? 4 : daemon_vars.keys.num_slots) * 2;
+        if ((daemon_vars.keys.slots = realloc(daemon_vars.keys.slots, sizeof(daemon_vars.keys.slots[0]) * new_capacity)) == NULL)
             dief("no memory");
-
-        /* set all bits to 1 making all slots available */
-        memset(&b[BITBYTES(slots->reserved_size)], 0xff, BITBYTES(size - slots->reserved_size));
-
-        slots->bita_avail = b;
-        slots->reserved_size = size;
+        daemon_vars.keys.first_empty = daemon_vars.keys.num_slots;
+        for (size_t i = daemon_vars.keys.num_slots; i < new_capacity - 1; ++i)
+            daemon_vars.keys.slots[i].next_empty = i + 1;
+        daemon_vars.keys.slots[new_capacity - 1].next_empty = SIZE_MAX;
+        daemon_vars.keys.num_slots = new_capacity;
     }
+
+    /* detach the first empty slot from the empty list */
+    size_t slot_index = daemon_vars.keys.first_empty;
+    daemon_vars.keys.first_empty = daemon_vars.keys.slots[slot_index].next_empty;
+
+    /* set bogus value in the allocated slot to help figure out what happened upon crash */
+    daemon_vars.keys.slots[slot_index].next_empty = SIZE_MAX - 1;
+
+    return slot_index;
 }
 
-static size_t daemon_set_rsa(RSA *rsa)
+static size_t daemon_set_pkey(EVP_PKEY *pkey)
 {
+    assert(pkey != NULL);
+
     pthread_mutex_lock(&daemon_vars.keys.lock);
 
-    adjust_slots_reserved_size(NEVERBLEED_TYPE_RSA, &daemon_vars.keys.rsa_slots);
+    size_t index = allocate_slot();
+    daemon_vars.keys.slots[index].pkey = pkey;
+    EVP_PKEY_up_ref(pkey);
 
-    size_t index = bita_ffirst(daemon_vars.keys.rsa_slots.bita_avail, daemon_vars.keys.rsa_slots.reserved_size, 0);
-
-    if (index == SIZE_MAX)
-        dief("no available slot for key");
-
-    /* set slot as unavailable */
-    BITUNSET(daemon_vars.keys.rsa_slots.bita_avail, index);
-
-    daemon_vars.keys.rsa_slots.size++;
-    daemon_vars.keys.keys[index] = rsa;
-    RSA_up_ref(rsa);
     pthread_mutex_unlock(&daemon_vars.keys.lock);
 
     return index;
 }
 
+
 static int priv_encdec_proxy(const char *cmd, int flen, const unsigned char *from, unsigned char *_to, RSA *rsa, int padding)
 {
     struct st_neverbleed_rsa_exdata_t *exdata;
     struct st_neverbleed_thread_data_t *thdata;
-    struct expbuf_t buf = {NULL};
+    neverbleed_iobuf_t buf = {NULL};
     size_t ret;
     unsigned char *to;
     size_t tolen;
 
     get_privsep_data(rsa, &exdata, &thdata);
 
-    expbuf_push_str(&buf, cmd);
-    expbuf_push_bytes(&buf, from, flen);
-    expbuf_push_num(&buf, exdata->key_index);
-    expbuf_push_num(&buf, padding);
-    if (expbuf_write(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "write error" : "connection closed by daemon");
-    expbuf_dispose(&buf);
+    iobuf_push_str(&buf, cmd);
+    iobuf_push_bytes(&buf, from, flen);
+    iobuf_push_num(&buf, exdata->key_index);
+    iobuf_push_num(&buf, padding);
 
-    if (expbuf_read(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "read error" : "connection closed by daemon");
-    if (expbuf_shift_num(&buf, &ret) != 0 || (to = expbuf_shift_bytes(&buf, &tolen)) == NULL) {
+    iobuf_transaction(&buf, thdata);
+
+    if (iobuf_shift_num(&buf, &ret) != 0 || (to = iobuf_shift_bytes(&buf, &tolen)) == NULL) {
         errno = 0;
         dief("failed to parse response");
     }
     memcpy(_to, to, tolen);
-    expbuf_dispose(&buf);
+    iobuf_dispose(&buf);
 
     return (int)ret;
 }
 
 static int priv_encdec_stub(const char *name,
                             int (*func)(int flen, const unsigned char *from, unsigned char *to, RSA *rsa, int padding),
-                            struct expbuf_t *buf)
+                            neverbleed_iobuf_t *buf)
 {
     unsigned char *from, to[4096];
     size_t flen;
@@ -586,8 +580,8 @@ static int priv_encdec_stub(const char *name,
     RSA *rsa;
     int ret;
 
-    if ((from = expbuf_shift_bytes(buf, &flen)) == NULL || expbuf_shift_num(buf, &key_index) != 0 ||
-        expbuf_shift_num(buf, &padding) != 0) {
+    if ((from = iobuf_shift_bytes(buf, &flen)) == NULL || iobuf_shift_num(buf, &key_index) != 0 ||
+        iobuf_shift_num(buf, &padding) != 0) {
         errno = 0;
         warnf("%s: failed to parse request", name);
         return -1;
@@ -598,11 +592,11 @@ static int priv_encdec_stub(const char *name,
         return -1;
     }
     ret = func((int)flen, from, to, rsa, (int)padding);
-    expbuf_dispose(buf);
+    iobuf_dispose(buf);
     RSA_free(rsa);
 
-    expbuf_push_num(buf, ret);
-    expbuf_push_bytes(buf, to, ret > 0 ? ret : 0);
+    iobuf_push_num(buf, ret);
+    iobuf_push_bytes(buf, to, ret > 0 ? ret : 0);
 
     return 0;
 }
@@ -612,7 +606,7 @@ static int priv_enc_proxy(int flen, const unsigned char *from, unsigned char *to
     return priv_encdec_proxy("priv_enc", flen, from, to, rsa, padding);
 }
 
-static int priv_enc_stub(struct expbuf_t *buf)
+static int priv_enc_stub(neverbleed_iobuf_t *buf)
 {
     return priv_encdec_stub(__FUNCTION__, RSA_private_encrypt, buf);
 }
@@ -622,7 +616,7 @@ static int priv_dec_proxy(int flen, const unsigned char *from, unsigned char *to
     return priv_encdec_proxy("priv_dec", flen, from, to, rsa, padding);
 }
 
-static int priv_dec_stub(struct expbuf_t *buf)
+static int priv_dec_stub(neverbleed_iobuf_t *buf)
 {
     return priv_encdec_stub(__FUNCTION__, RSA_private_decrypt, buf);
 }
@@ -632,34 +626,30 @@ static int sign_proxy(int type, const unsigned char *m, unsigned int m_len, unsi
 {
     struct st_neverbleed_rsa_exdata_t *exdata;
     struct st_neverbleed_thread_data_t *thdata;
-    struct expbuf_t buf = {NULL};
+    neverbleed_iobuf_t buf = {NULL};
     size_t ret, siglen;
     unsigned char *sigret;
 
     get_privsep_data(rsa, &exdata, &thdata);
 
-    expbuf_push_str(&buf, "sign");
-    expbuf_push_num(&buf, type);
-    expbuf_push_bytes(&buf, m, m_len);
-    expbuf_push_num(&buf, exdata->key_index);
-    if (expbuf_write(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "write error" : "connection closed by daemon");
-    expbuf_dispose(&buf);
+    iobuf_push_str(&buf, "sign");
+    iobuf_push_num(&buf, type);
+    iobuf_push_bytes(&buf, m, m_len);
+    iobuf_push_num(&buf, exdata->key_index);
+    iobuf_transaction(&buf, thdata);
 
-    if (expbuf_read(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "read error" : "connection closed by daemon");
-    if (expbuf_shift_num(&buf, &ret) != 0 || (sigret = expbuf_shift_bytes(&buf, &siglen)) == NULL) {
+    if (iobuf_shift_num(&buf, &ret) != 0 || (sigret = iobuf_shift_bytes(&buf, &siglen)) == NULL) {
         errno = 0;
         dief("failed to parse response");
     }
     memcpy(_sigret, sigret, siglen);
     *_siglen = (unsigned)siglen;
-    expbuf_dispose(&buf);
+    iobuf_dispose(&buf);
 
     return (int)ret;
 }
 
-static int sign_stub(struct expbuf_t *buf)
+static int sign_stub(neverbleed_iobuf_t *buf)
 {
     unsigned char *m, sigret[4096];
     size_t type, m_len, key_index;
@@ -667,8 +657,8 @@ static int sign_stub(struct expbuf_t *buf)
     unsigned siglen = 0;
     int ret;
 
-    if (expbuf_shift_num(buf, &type) != 0 || (m = expbuf_shift_bytes(buf, &m_len)) == NULL ||
-        expbuf_shift_num(buf, &key_index) != 0) {
+    if (iobuf_shift_num(buf, &type) != 0 || (m = iobuf_shift_bytes(buf, &m_len)) == NULL ||
+        iobuf_shift_num(buf, &key_index) != 0) {
         errno = 0;
         warnf("%s: failed to parse request", __FUNCTION__);
         return -1;
@@ -679,11 +669,11 @@ static int sign_stub(struct expbuf_t *buf)
         return -1;
     }
     ret = RSA_sign((int)type, m, (unsigned)m_len, sigret, &siglen, rsa);
-    expbuf_dispose(buf);
+    iobuf_dispose(buf);
     RSA_free(rsa);
 
-    expbuf_push_num(buf, ret);
-    expbuf_push_bytes(buf, sigret, ret == 1 ? siglen : 0);
+    iobuf_push_num(buf, ret);
+    iobuf_push_bytes(buf, sigret, ret == 1 ? siglen : 0);
 
     return 0;
 }
@@ -726,40 +716,17 @@ static EVP_PKEY *create_pkey(neverbleed_t *nb, size_t key_index, const char *ebu
 
 static EC_KEY *daemon_get_ecdsa(size_t key_index)
 {
-    EC_KEY *ec_key;
+    EC_KEY *ec_key = NULL;
 
     pthread_mutex_lock(&daemon_vars.keys.lock);
-    ec_key = daemon_vars.keys.ecdsa_keys[key_index];
-    if (ec_key)
-        EC_KEY_up_ref(ec_key);
+    if (key_index < daemon_vars.keys.num_slots)
+        ec_key = EVP_PKEY_get1_EC_KEY(daemon_vars.keys.slots[key_index].pkey);
     pthread_mutex_unlock(&daemon_vars.keys.lock);
 
     return ec_key;
 }
 
-static size_t daemon_set_ecdsa(EC_KEY *ec_key)
-{
-    pthread_mutex_lock(&daemon_vars.keys.lock);
-
-    adjust_slots_reserved_size(NEVERBLEED_TYPE_ECDSA, &daemon_vars.keys.ecdsa_slots);
-
-    size_t index = bita_ffirst(daemon_vars.keys.ecdsa_slots.bita_avail, daemon_vars.keys.ecdsa_slots.reserved_size, 0);
-
-    if (index == SIZE_MAX)
-        dief("no available slot for key");
-
-    /* set slot as unavailable */
-    BITUNSET(daemon_vars.keys.ecdsa_slots.bita_avail, index);
-
-    daemon_vars.keys.ecdsa_slots.size++;
-    daemon_vars.keys.ecdsa_keys[index] = ec_key;
-    EC_KEY_up_ref(ec_key);
-    pthread_mutex_unlock(&daemon_vars.keys.lock);
-
-    return index;
-}
-
-static int ecdsa_sign_stub(struct expbuf_t *buf)
+static int ecdsa_sign_stub(neverbleed_iobuf_t *buf)
 {
     unsigned char *m, sigret[4096];
     size_t type, m_len, key_index;
@@ -767,8 +734,8 @@ static int ecdsa_sign_stub(struct expbuf_t *buf)
     unsigned siglen = 0;
     int ret;
 
-    if (expbuf_shift_num(buf, &type) != 0 || (m = expbuf_shift_bytes(buf, &m_len)) == NULL ||
-        expbuf_shift_num(buf, &key_index) != 0) {
+    if (iobuf_shift_num(buf, &type) != 0 || (m = iobuf_shift_bytes(buf, &m_len)) == NULL ||
+        iobuf_shift_num(buf, &key_index) != 0) {
         errno = 0;
         warnf("%s: failed to parse request", __FUNCTION__);
         return -1;
@@ -780,12 +747,12 @@ static int ecdsa_sign_stub(struct expbuf_t *buf)
     }
 
     ret = ECDSA_sign((int)type, m, (unsigned)m_len, sigret, &siglen, ec_key);
-    expbuf_dispose(buf);
+    iobuf_dispose(buf);
 
     EC_KEY_free(ec_key);
 
-    expbuf_push_num(buf, ret);
-    expbuf_push_bytes(buf, sigret, ret == 1 ? siglen : 0);
+    iobuf_push_num(buf, ret);
+    iobuf_push_bytes(buf, sigret, ret == 1 ? siglen : 0);
 
     return 0;
 }
@@ -804,7 +771,7 @@ static int ecdsa_sign_proxy(int type, const unsigned char *m, int m_len, unsigne
 {
     struct st_neverbleed_rsa_exdata_t *exdata;
     struct st_neverbleed_thread_data_t *thdata;
-    struct expbuf_t buf = {};
+    neverbleed_iobuf_t buf = {NULL};
     size_t ret, siglen;
     unsigned char *sigret;
 
@@ -818,23 +785,19 @@ static int ecdsa_sign_proxy(int type, const unsigned char *m, int m_len, unsigne
         dief("unexpected non-NULL kinv and rp");
     }
 
-    expbuf_push_str(&buf, "ecdsa_sign");
-    expbuf_push_num(&buf, type);
-    expbuf_push_bytes(&buf, m, m_len);
-    expbuf_push_num(&buf, exdata->key_index);
-    if (expbuf_write(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "write error" : "connection closed by daemon");
-    expbuf_dispose(&buf);
+    iobuf_push_str(&buf, "ecdsa_sign");
+    iobuf_push_num(&buf, type);
+    iobuf_push_bytes(&buf, m, m_len);
+    iobuf_push_num(&buf, exdata->key_index);
+    iobuf_transaction(&buf, thdata);
 
-    if (expbuf_read(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "read error" : "connection closed by daemon");
-    if (expbuf_shift_num(&buf, &ret) != 0 || (sigret = expbuf_shift_bytes(&buf, &siglen)) == NULL) {
+    if (iobuf_shift_num(&buf, &ret) != 0 || (sigret = iobuf_shift_bytes(&buf, &siglen)) == NULL) {
         errno = 0;
         dief("failed to parse response");
     }
     memcpy(_sigret, sigret, siglen);
     *_siglen = (unsigned)siglen;
-    expbuf_dispose(&buf);
+    iobuf_dispose(&buf);
 
     return (int)ret;
 }
@@ -898,81 +861,165 @@ static void priv_ecdsa_finish(EC_KEY *key)
     if (exdata == NULL)
         return;
 
-    struct expbuf_t buf = {NULL};
+    neverbleed_iobuf_t buf = {NULL};
     size_t ret;
 
-    expbuf_push_str(&buf, "del_ecdsa_key");
-    expbuf_push_num(&buf, exdata->key_index);
-    if (expbuf_write(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "write error" : "connection closed by daemon");
-    expbuf_dispose(&buf);
+    iobuf_push_str(&buf, "del_pkey");
+    iobuf_push_num(&buf, exdata->key_index);
+    iobuf_transaction(&buf, thdata);
 
-    if (expbuf_read(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "read error" : "connection closed by daemon");
-    if (expbuf_shift_num(&buf, &ret) != 0) {
+    if (iobuf_shift_num(&buf, &ret) != 0) {
         errno = 0;
         dief("failed to parse response");
     }
-    expbuf_dispose(&buf);
-}
-
-static int del_ecdsa_key_stub(struct expbuf_t *buf)
-{
-    size_t key_index;
-    int ret = 0;
-
-    if (expbuf_shift_num(buf, &key_index) != 0) {
-        errno = 0;
-        warnf("%s: failed to parse request", __FUNCTION__);
-        return -1;
-    }
-
-    if (!daemon_vars.keys.ecdsa_keys || key_index >= daemon_vars.keys.ecdsa_slots.reserved_size) {
-        errno = 0;
-        warnf("%s: invalid key index %zu", __FUNCTION__, key_index);
-        goto respond;
-    }
-
-    if (BITCHECK(daemon_vars.keys.ecdsa_slots.bita_avail, key_index)) {
-        warnf("%s: index not in use %zu", __FUNCTION__, key_index);
-        goto respond;
-    }
-
-    pthread_mutex_lock(&daemon_vars.keys.lock);
-    /* set slot as available */
-    BITSET(daemon_vars.keys.ecdsa_slots.bita_avail, key_index);
-    daemon_vars.keys.ecdsa_slots.size--;
-    EC_KEY_free(daemon_vars.keys.ecdsa_keys[key_index]);
-    daemon_vars.keys.ecdsa_keys[key_index] = NULL;
-    pthread_mutex_unlock(&daemon_vars.keys.lock);
-
-    ret = 1;
-
-respond:
-    expbuf_dispose(buf);
-    expbuf_push_num(buf, ret);
-    return 0;
+    iobuf_dispose(&buf);
 }
 
 #endif
 
+static EVP_PKEY *daemon_get_pkey(size_t key_index)
+{
+    EVP_PKEY *pkey = NULL;
+
+    pthread_mutex_lock(&daemon_vars.keys.lock);
+    if (key_index < daemon_vars.keys.num_slots) {
+        pkey = daemon_vars.keys.slots[key_index].pkey;
+        EVP_PKEY_up_ref(pkey);
+    }
+    pthread_mutex_unlock(&daemon_vars.keys.lock);
+
+    return pkey;
+}
+
+static int digestsign_stub(neverbleed_iobuf_t *buf)
+{
+    size_t key_index, md_nid, signlen;
+    void *signdata;
+    EVP_PKEY *pkey;
+    const EVP_MD *md;
+
+    /* parse input */
+    if (iobuf_shift_num(buf, &key_index) != 0 || iobuf_shift_num(buf, &md_nid) != 0 ||
+        (signdata = iobuf_shift_bytes(buf, &signlen)) == NULL) {
+        errno = 0;
+        warnf("%s: failed to parse request", __FUNCTION__);
+        return -1;
+    }
+    if ((pkey = daemon_get_pkey(key_index)) == NULL) {
+        errno = 0;
+        warnf("%s: invalid key index:%zu", __FUNCTION__, key_index);
+        return -1;
+    }
+    if (md_nid != SIZE_MAX) {
+        if ((md = EVP_get_digestbynid((int)md_nid)) == NULL) {
+            errno = 0;
+            warnf("%s: invalid EVP_MD nid", __FUNCTION__);
+            return -1;
+        }
+    } else {
+        md = NULL;
+    }
+
+    /* generate signature */
+    EVP_MD_CTX *mdctx = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    unsigned char digestbuf[4096];
+    size_t digestlen;
+
+    if ((mdctx = EVP_MD_CTX_create()) == NULL)
+        goto Softfail;
+    if (EVP_DigestSignInit(mdctx, &pkey_ctx, md, NULL, pkey) != 1)
+        goto Softfail;
+    if (EVP_PKEY_id(pkey) == EVP_PKEY_RSA) {
+        if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING) != 1 ||
+            EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, -1) != 1)
+            goto Softfail;
+        if (EVP_PKEY_CTX_set_rsa_mgf1_md(pkey_ctx, md) != 1)
+            goto Softfail;
+    }
+    /* ED25519 keys can never be loaded, so use the Update -> Final call chain without worrying about backward compatibility */
+    if (EVP_DigestSignUpdate(mdctx, signdata, signlen) != 1)
+        goto Softfail;
+    if (EVP_DigestSignFinal(mdctx, NULL, &digestlen) != 1)
+        goto Softfail;
+    if (sizeof(digestbuf) < digestlen) {
+        warnf("%s: digest unexpectedly long as %zu bytes", __FUNCTION__, digestlen);
+        goto Softfail;
+    }
+    if (EVP_DigestSignFinal(mdctx, digestbuf, &digestlen) != 1)
+        goto Softfail;
+
+Respond: /* build response */
+    iobuf_dispose(buf);
+    iobuf_push_bytes(buf, digestbuf, digestlen);
+    if (mdctx != NULL)
+        EVP_MD_CTX_destroy(mdctx);
+    if (pkey != NULL)
+        EVP_PKEY_free(pkey);
+    return 0;
+
+Softfail:
+    digestlen = 0;
+    goto Respond;
+}
+
+void neverbleed_start_digestsign(neverbleed_iobuf_t *buf, EVP_PKEY *pkey, const EVP_MD *md, const void *input, size_t len)
+{
+    struct st_neverbleed_rsa_exdata_t *exdata;
+    struct st_neverbleed_thread_data_t *thdata;
+
+    /* obtain reference */
+    switch (EVP_PKEY_base_id(pkey)) {
+    case EVP_PKEY_RSA: {
+        RSA *rsa = EVP_PKEY_get1_RSA(pkey); /* get0 is available not available in OpenSSL 1.0.2 */
+        get_privsep_data(rsa, &exdata, &thdata);
+        RSA_free(rsa);
+    } break;
+#ifdef NEVERBLEED_ECDSA
+    case EVP_PKEY_EC:
+        ecdsa_get_privsep_data(EVP_PKEY_get0_EC_KEY(pkey), &exdata, &thdata);
+        break;
+#endif
+    default:
+        dief("unexpected private key");
+        break;
+    }
+
+    *buf = (neverbleed_iobuf_t){NULL};
+    iobuf_push_str(buf, "digestsign");
+    iobuf_push_num(buf, exdata->key_index);
+    iobuf_push_num(buf, md != NULL ? (size_t)EVP_MD_nid(md) : SIZE_MAX);
+    iobuf_push_bytes(buf, input, len);
+}
+
+void neverbleed_finish_digestsign(neverbleed_iobuf_t *buf, void **digest, size_t *digest_len)
+{
+    const void *src;
+
+    if ((src = iobuf_shift_bytes(buf, digest_len)) == NULL) {
+        errno = 0;
+        dief("failed to parse response");
+    }
+    if ((*digest = malloc(*digest_len)) == NULL)
+        dief("no memory");
+    memcpy(*digest, src, *digest_len);
+
+    iobuf_dispose(buf);
+}
+
 int neverbleed_load_private_key_file(neverbleed_t *nb, SSL_CTX *ctx, const char *fn, char *errbuf)
 {
     struct st_neverbleed_thread_data_t *thdata = get_thread_data(nb);
-    struct expbuf_t buf = {NULL};
+    neverbleed_iobuf_t buf = {NULL};
     int ret = 1;
     size_t index, type;
     EVP_PKEY *pkey;
 
-    expbuf_push_str(&buf, "load_key");
-    expbuf_push_str(&buf, fn);
-    if (expbuf_write(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "write error" : "connection closed by daemon");
-    expbuf_dispose(&buf);
+    iobuf_push_str(&buf, "load_key");
+    iobuf_push_str(&buf, fn);
+    iobuf_transaction(&buf, thdata);
 
-    if (expbuf_read(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "read error" : "connection closed by daemon");
-    if (expbuf_shift_num(&buf, &type) != 0 || expbuf_shift_num(&buf, &index) != 0) {
+    if (iobuf_shift_num(&buf, &type) != 0 || iobuf_shift_num(&buf, &index) != 0) {
         errno = 0;
         dief("failed to parse response");
     }
@@ -981,7 +1028,7 @@ int neverbleed_load_private_key_file(neverbleed_t *nb, SSL_CTX *ctx, const char 
     case NEVERBLEED_TYPE_RSA: {
         char *estr, *nstr;
 
-        if ((estr = expbuf_shift_str(&buf)) == NULL || (nstr = expbuf_shift_str(&buf)) == NULL) {
+        if ((estr = iobuf_shift_str(&buf)) == NULL || (nstr = iobuf_shift_str(&buf)) == NULL) {
             errno = 0;
             dief("failed to parse response");
         }
@@ -993,7 +1040,7 @@ int neverbleed_load_private_key_file(neverbleed_t *nb, SSL_CTX *ctx, const char 
         char *ec_pubkeystr;
         size_t curve_name;
 
-        if (expbuf_shift_num(&buf, &curve_name) != 0 || (ec_pubkeystr = expbuf_shift_str(&buf)) == NULL) {
+        if (iobuf_shift_num(&buf, &curve_name) != 0 || (ec_pubkeystr = iobuf_shift_str(&buf)) == NULL) {
             errno = 0;
             dief("failed to parse response");
         }
@@ -1004,7 +1051,7 @@ int neverbleed_load_private_key_file(neverbleed_t *nb, SSL_CTX *ctx, const char 
     default: {
         char *errstr;
 
-        if ((errstr = expbuf_shift_str(&buf)) == NULL) {
+        if ((errstr = iobuf_shift_str(&buf)) == NULL) {
             errno = 0;
             dief("failed to parse response");
         }
@@ -1014,7 +1061,7 @@ int neverbleed_load_private_key_file(neverbleed_t *nb, SSL_CTX *ctx, const char 
     }
     }
 
-    expbuf_dispose(&buf);
+    iobuf_dispose(&buf);
 
     /* success */
     if (SSL_CTX_use_PrivateKey(ctx, pkey) != 1) {
@@ -1026,7 +1073,7 @@ int neverbleed_load_private_key_file(neverbleed_t *nb, SSL_CTX *ctx, const char 
     return ret;
 }
 
-static int load_key_stub(struct expbuf_t *buf)
+static int load_key_stub(neverbleed_iobuf_t *buf)
 {
     char *fn;
     FILE *fp = NULL;
@@ -1041,7 +1088,7 @@ static int load_key_stub(struct expbuf_t *buf)
     char *ec_pubkeystr = NULL;
 #endif
 
-    if ((fn = expbuf_shift_str(buf)) == NULL) {
+    if ((fn = iobuf_shift_str(buf)) == NULL) {
         warnf("%s: failed to parse request", __FUNCTION__);
         return -1;
     }
@@ -1062,7 +1109,6 @@ static int load_key_stub(struct expbuf_t *buf)
 
         rsa = EVP_PKEY_get1_RSA(pkey);
         type = NEVERBLEED_TYPE_RSA;
-        key_index = daemon_set_rsa(rsa);
         RSA_get0_key(rsa, &n, &e, NULL);
         estr = BN_bn2hex(e);
         nstr = BN_bn2hex(n);
@@ -1075,7 +1121,6 @@ static int load_key_stub(struct expbuf_t *buf)
 
         ec_key = (EC_KEY *)EVP_PKEY_get0_EC_KEY(pkey);
         type = NEVERBLEED_TYPE_ECDSA;
-        key_index = daemon_set_ecdsa(ec_key);
         ec_group = EC_KEY_get0_group(ec_key);
         ec_pubkey = EC_KEY_get0_public_key(ec_key);
         ec_pubkeybn = BN_new();
@@ -1096,23 +1141,26 @@ static int load_key_stub(struct expbuf_t *buf)
         goto Respond;
     }
 
+    /* store the key */
+    key_index = daemon_set_pkey(pkey);
+
 Respond:
-    expbuf_dispose(buf);
-    expbuf_push_num(buf, type);
-    expbuf_push_num(buf, key_index);
+    iobuf_dispose(buf);
+    iobuf_push_num(buf, type);
+    iobuf_push_num(buf, key_index);
     switch (type) {
     case NEVERBLEED_TYPE_RSA:
-        expbuf_push_str(buf, estr != NULL ? estr : "");
-        expbuf_push_str(buf, nstr != NULL ? nstr : "");
+        iobuf_push_str(buf, estr != NULL ? estr : "");
+        iobuf_push_str(buf, nstr != NULL ? nstr : "");
         break;
 #ifdef NEVERBLEED_ECDSA
     case NEVERBLEED_TYPE_ECDSA:
-        expbuf_push_num(buf, EC_GROUP_get_curve_name(ec_group));
-        expbuf_push_str(buf, ec_pubkeystr);
+        iobuf_push_num(buf, EC_GROUP_get_curve_name(ec_group));
+        iobuf_push_str(buf, ec_pubkeystr);
         break;
 #endif
     default:
-        expbuf_push_str(buf, errbuf);
+        iobuf_push_str(buf, errbuf);
     }
     if (rsa != NULL)
         RSA_free(rsa);
@@ -1137,28 +1185,24 @@ Respond:
 int neverbleed_setuidgid(neverbleed_t *nb, const char *user, int change_socket_ownership)
 {
     struct st_neverbleed_thread_data_t *thdata = get_thread_data(nb);
-    struct expbuf_t buf = {NULL};
+    neverbleed_iobuf_t buf = {NULL};
     size_t ret;
 
-    expbuf_push_str(&buf, "setuidgid");
-    expbuf_push_str(&buf, user);
-    expbuf_push_num(&buf, change_socket_ownership);
-    if (expbuf_write(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "write error" : "connection closed by daemon");
-    expbuf_dispose(&buf);
+    iobuf_push_str(&buf, "setuidgid");
+    iobuf_push_str(&buf, user);
+    iobuf_push_num(&buf, change_socket_ownership);
+    iobuf_transaction(&buf, thdata);
 
-    if (expbuf_read(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "read error" : "connection closed by daemon");
-    if (expbuf_shift_num(&buf, &ret) != 0) {
+    if (iobuf_shift_num(&buf, &ret) != 0) {
         errno = 0;
         dief("failed to parse response");
     }
-    expbuf_dispose(&buf);
+    iobuf_dispose(&buf);
 
     return (int)ret;
 }
 
-static int setuidgid_stub(struct expbuf_t *buf)
+static int setuidgid_stub(neverbleed_iobuf_t *buf)
 {
     const char *user;
     size_t change_socket_ownership;
@@ -1166,7 +1210,7 @@ static int setuidgid_stub(struct expbuf_t *buf)
     char pwstrbuf[65536]; /* should be large enough */
     int ret = -1;
 
-    if ((user = expbuf_shift_str(buf)) == NULL || expbuf_shift_num(buf, &change_socket_ownership) != 0) {
+    if ((user = iobuf_shift_str(buf)) == NULL || iobuf_shift_num(buf, &change_socket_ownership) != 0) {
         errno = 0;
         warnf("%s: failed to parse request", __FUNCTION__);
         return -1;
@@ -1208,10 +1252,65 @@ static int setuidgid_stub(struct expbuf_t *buf)
     ret = 0;
 
 Respond:
-    expbuf_dispose(buf);
-    expbuf_push_num(buf, ret);
+    iobuf_dispose(buf);
+    iobuf_push_num(buf, ret);
     return 0;
 }
+
+#if NEVERBLEED_HAS_PTHREAD_SETAFFINITY_NP
+int neverbleed_setaffinity(neverbleed_t *nb, NEVERBLEED_CPU_SET_T *cpuset)
+{
+    struct st_neverbleed_thread_data_t *thdata = get_thread_data(nb);
+    neverbleed_iobuf_t buf = {NULL};
+    size_t ret;
+
+    iobuf_push_str(&buf, "setaffinity");
+    iobuf_push_bytes(&buf, cpuset, sizeof(*cpuset));
+    iobuf_transaction(&buf, thdata);
+
+    if (iobuf_shift_num(&buf, &ret) != 0) {
+        errno = 0;
+        dief("failed to parse response");
+    }
+    iobuf_dispose(&buf);
+
+    return (int)ret;
+}
+
+static int setaffinity_stub(neverbleed_iobuf_t *buf)
+{
+    char *cpuset_bytes;
+    size_t cpuset_len;
+    NEVERBLEED_CPU_SET_T cpuset;
+    int ret = 1;
+
+    if ((cpuset_bytes = iobuf_shift_bytes(buf, &cpuset_len)) == NULL) {
+        errno = 0;
+        warnf("%s: failed to parse request", __FUNCTION__);
+        return -1;
+    }
+
+    assert(cpuset_len == sizeof(NEVERBLEED_CPU_SET_T));
+    memcpy(&cpuset, cpuset_bytes, cpuset_len);
+
+#ifdef __NetBSD__
+    ret = pthread_setaffinity_np(pthread_self(), cpuset_size(cpuset), cpuset);
+#else
+    ret = pthread_setaffinity_np(pthread_self(), sizeof(NEVERBLEED_CPU_SET_T), &cpuset);
+#endif
+    if (ret != 0) {
+        ret = 1;
+        goto Respond;
+    }
+
+    ret = 0;
+
+Respond:
+    iobuf_dispose(buf);
+    iobuf_push_num(buf, ret);
+    return 0;
+}
+#endif
 
 __attribute__((noreturn)) static void *daemon_close_notify_thread(void *_close_notify_fd)
 {
@@ -1247,69 +1346,83 @@ static int priv_rsa_finish(RSA *rsa)
     if (exdata == NULL)
         return 1;
 
-    struct expbuf_t buf = {NULL};
+    neverbleed_iobuf_t buf = {NULL};
     size_t ret;
 
-    expbuf_push_str(&buf, "del_rsa_key");
-    expbuf_push_num(&buf, exdata->key_index);
-    if (expbuf_write(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "write error" : "connection closed by daemon");
-    expbuf_dispose(&buf);
+    iobuf_push_str(&buf, "del_pkey");
+    iobuf_push_num(&buf, exdata->key_index);
+    iobuf_transaction(&buf, thdata);
 
-    if (expbuf_read(&buf, thdata->fd) != 0)
-        dief(errno != 0 ? "read error" : "connection closed by daemon");
-    if (expbuf_shift_num(&buf, &ret) != 0) {
+    if (iobuf_shift_num(&buf, &ret) != 0) {
         errno = 0;
         dief("failed to parse response");
     }
-    expbuf_dispose(&buf);
+    iobuf_dispose(&buf);
 
     return (int)ret;
 }
 
-static int del_rsa_key_stub(struct expbuf_t *buf)
+static int del_pkey_stub(neverbleed_iobuf_t *buf)
 {
     size_t key_index;
 
     int ret = 0;
 
-    if (expbuf_shift_num(buf, &key_index) != 0) {
+    if (iobuf_shift_num(buf, &key_index) != 0) {
         errno = 0;
         warnf("%s: failed to parse request", __FUNCTION__);
         return -1;
     }
 
-    if (!daemon_vars.keys.keys || key_index >= daemon_vars.keys.rsa_slots.reserved_size) {
-        errno = 0;
+    pthread_mutex_lock(&daemon_vars.keys.lock);
+    /* set slot as available */
+    if (key_index < daemon_vars.keys.num_slots) {
+        EVP_PKEY_free(daemon_vars.keys.slots[key_index].pkey);
+        daemon_vars.keys.slots[key_index].next_empty = daemon_vars.keys.first_empty;
+        daemon_vars.keys.first_empty = key_index;
+    } else {
         warnf("%s: invalid key index %zu", __FUNCTION__, key_index);
         goto respond;
     }
-
-    if (BITCHECK(daemon_vars.keys.rsa_slots.bita_avail, key_index)) {
-        warnf("%s: index not in use %zu", __FUNCTION__, key_index);
-        goto respond;
-    }
-
-    pthread_mutex_lock(&daemon_vars.keys.lock);
-    /* set slot as available */
-    BITSET(daemon_vars.keys.rsa_slots.bita_avail, key_index);
-    daemon_vars.keys.rsa_slots.size--;
-    RSA_free(daemon_vars.keys.keys[key_index]);
-    daemon_vars.keys.keys[key_index] = NULL;
     pthread_mutex_unlock(&daemon_vars.keys.lock);
 
     ret = 1;
 
 respond:
-    expbuf_dispose(buf);
-    expbuf_push_num(buf, ret);
+    iobuf_dispose(buf);
+    iobuf_push_num(buf, ret);
     return 0;
+}
+
+/**
+ * This function waits for the provided socket to become readable, then calls `nanosleep(1)` before returning.
+ * The intention behind sleep is to provide the application to complete its event loop before the neverbleed process starts
+ * spending CPU cycles on the time-consuming RSA operation.
+ */
+static void yield_on_data(int fd)
+{
+    fd_set rfds;
+    int ret;
+    FD_ZERO(&rfds);
+    FD_SET(fd, &rfds);
+
+    while ((ret = select(fd + 1, &rfds, NULL, NULL, NULL)) == -1 && (errno == EAGAIN || errno == EINTR))
+        ;
+    if (ret == -1) {
+        dief("select(2)\n");
+    } else if (ret > 0) {
+        // yield when data is available
+        struct timespec tv = {.tv_nsec = 1};
+        (void)nanosleep(&tv, NULL);
+    } else {
+        dief("unreachable, no timeout configured");
+    }
 }
 
 static void *daemon_conn_thread(void *_sock_fd)
 {
     int sock_fd = (int)((char *)_sock_fd - (char *)NULL);
-    struct expbuf_t buf = {NULL};
+    neverbleed_iobuf_t buf = {NULL};
     unsigned char auth_token[NEVERBLEED_AUTH_TOKEN_SIZE];
 
     /* authenticate */
@@ -1324,12 +1437,13 @@ static void *daemon_conn_thread(void *_sock_fd)
 
     while (1) {
         char *cmd;
-        if (expbuf_read(&buf, sock_fd) != 0) {
+        yield_on_data(sock_fd);
+        if (iobuf_read(&buf, sock_fd) != 0) {
             if (errno != 0)
                 warnf("read error");
             break;
         }
-        if ((cmd = expbuf_shift_str(&buf)) == NULL) {
+        if ((cmd = iobuf_shift_str(&buf)) == NULL) {
             errno = 0;
             warnf("failed to parse request");
             break;
@@ -1347,40 +1461,59 @@ static void *daemon_conn_thread(void *_sock_fd)
         } else if (strcmp(cmd, "ecdsa_sign") == 0) {
             if (ecdsa_sign_stub(&buf) != 0)
                 break;
-        } else if (strcmp(cmd, "del_ecdsa_key") == 0) {
-            if (del_ecdsa_key_stub(&buf) != 0)
-                break;
 #endif
+        } else if (strcmp(cmd, "digestsign") == 0) {
+            if (digestsign_stub(&buf) != 0)
+                break;
         } else if (strcmp(cmd, "load_key") == 0) {
             if (load_key_stub(&buf) != 0)
                 break;
-        } else if (strcmp(cmd, "del_rsa_key") == 0) {
-            if (del_rsa_key_stub(&buf) != 0)
+        } else if (strcmp(cmd, "del_pkey") == 0) {
+            if (del_pkey_stub(&buf) != 0)
                 break;
         } else if (strcmp(cmd, "setuidgid") == 0) {
             if (setuidgid_stub(&buf) != 0)
                 break;
+#if NEVERBLEED_HAS_PTHREAD_SETAFFINITY_NP
+        } else if (strcmp(cmd, "setaffinity") == 0) {
+            if (setaffinity_stub(&buf) != 0)
+                break;
+#endif
         } else {
             warnf("unknown command:%s", cmd);
             break;
         }
-        if (expbuf_write(&buf, sock_fd) != 0) {
+        if (iobuf_write(&buf, sock_fd) != 0) {
             warnf(errno != 0 ? "write error" : "connection closed by client");
             break;
         }
-        expbuf_dispose(&buf);
+        iobuf_dispose(&buf);
     }
 
 Exit:
-    expbuf_dispose(&buf);
+    iobuf_dispose(&buf);
     close(sock_fd);
 
     return NULL;
 }
 
+#if !(defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__))
+#define closefrom my_closefrom
+static void my_closefrom(int lowfd)
+{
+    /* On linux, try close_range (2), then fall back to the slow loop if it fails. */
+#if defined(__linux__) && defined(__NR_close_range)
+    if (syscall(__NR_close_range, lowfd, ~0, 0) == 0)
+        return;
+#endif
+
+    for (int fd = (int)sysconf(_SC_OPEN_MAX) - 1; fd >= lowfd; --fd)
+        (void)close(fd);
+}
+#endif
+
 static void cleanup_fds(int listen_fd, int close_notify_fd)
 {
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
     int maxfd, k;
 
     maxfd = 0;
@@ -1399,20 +1532,10 @@ static void cleanup_fds(int listen_fd, int close_notify_fd)
         case STDIN_FILENO:
             break;
         default:
-            (void) close(k);
+            (void)close(k);
         }
     }
     closefrom(maxfd + 1);
-#else
-    int fd;
-
-    fd = (int)sysconf(_SC_OPEN_MAX) - 1;
-    for (; fd > 2; --fd) {
-        if (fd == listen_fd || fd == close_notify_fd)
-                continue;
-        close(fd);
-    }
-#endif
 }
 
 __attribute__((noreturn)) static void daemon_main(int listen_fd, int close_notify_fd, const char *tempdir)
@@ -1596,3 +1719,4 @@ Fail:
 }
 
 void (*neverbleed_post_fork_cb)(void) = NULL;
+void (*neverbleed_transaction_cb)(neverbleed_iobuf_t *) = NULL;
