@@ -572,8 +572,7 @@ static ssize_t defer_data_source_read_callback(nghttp2_session *session,
 }
 
 static int on_stream_close_callback(nghttp2_session *session, int32_t stream_id,
-                                    nghttp2_error_code error_code,
-                                    void *user_data) {
+                                    uint32_t error_code, void *user_data) {
   my_user_data *my_data = (my_user_data *)user_data;
   (void)session;
   (void)stream_id;
@@ -583,6 +582,15 @@ static int on_stream_close_callback(nghttp2_session *session, int32_t stream_id,
   my_data->stream_close_error_code = error_code;
 
   return 0;
+}
+
+static int fatal_error_on_stream_close_callback(nghttp2_session *session,
+                                                int32_t stream_id,
+                                                uint32_t error_code,
+                                                void *user_data) {
+  on_stream_close_callback(session, stream_id, error_code, user_data);
+
+  return NGHTTP2_ERR_CALLBACK_FAILURE;
 }
 
 static ssize_t pack_extension_callback(nghttp2_session *session, uint8_t *buf,
@@ -721,9 +729,7 @@ void test_nghttp2_session_recv(void) {
   /* Receive PRIORITY */
   nghttp2_frame_priority_init(&frame.priority, 5, &pri_spec_default);
 
-  rv = nghttp2_frame_pack_priority(&bufs, &frame.priority);
-
-  CU_ASSERT(0 == rv);
+  nghttp2_frame_pack_priority(&bufs, &frame.priority);
 
   nghttp2_frame_priority_free(&frame.priority);
 
@@ -747,9 +753,7 @@ void test_nghttp2_session_recv(void) {
   /* Receive PING with too large payload */
   nghttp2_frame_ping_init(&frame.ping, NGHTTP2_FLAG_NONE, NULL);
 
-  rv = nghttp2_frame_pack_ping(&bufs, &frame.ping);
-
-  CU_ASSERT(0 == rv);
+  nghttp2_frame_pack_ping(&bufs, &frame.ping);
 
   /* Add extra 16 bytes */
   nghttp2_bufs_seek_last_present(&bufs);
@@ -1402,9 +1406,8 @@ void test_nghttp2_session_recv_continuation(void) {
   nghttp2_frame_priority_init(&frame.priority, 1, &pri_spec);
   nghttp2_bufs_reset(&bufs);
 
-  rv = nghttp2_frame_pack_priority(&bufs, &frame.priority);
+  nghttp2_frame_pack_priority(&bufs, &frame.priority);
 
-  CU_ASSERT(0 == rv);
   CU_ASSERT(nghttp2_bufs_len(&bufs) > 0);
 
   memcpy(data + datalen, buf->pos, nghttp2_buf_len(buf));
@@ -4297,6 +4300,8 @@ void test_nghttp2_session_on_goaway_received(void) {
   nghttp2_frame frame;
   int i;
   nghttp2_mem *mem;
+  const uint8_t *data;
+  ssize_t datalen;
 
   mem = nghttp2_mem_default();
   user_data.frame_recv_cb_called = 0;
@@ -4338,6 +4343,29 @@ void test_nghttp2_session_on_goaway_received(void) {
 
   nghttp2_frame_goaway_free(&frame.goaway, mem);
   nghttp2_session_del(session);
+
+  /* Make sure that no memory leak when stream_close callback fails
+     with a fatal error */
+  memset(&callbacks, 0, sizeof(nghttp2_session_callbacks));
+  callbacks.on_stream_close_callback = fatal_error_on_stream_close_callback;
+
+  memset(&user_data, 0, sizeof(user_data));
+
+  nghttp2_session_client_new(&session, &callbacks, &user_data);
+
+  nghttp2_frame_goaway_init(&frame.goaway, 0, NGHTTP2_NO_ERROR, NULL, 0);
+
+  CU_ASSERT(0 == nghttp2_session_on_goaway_received(session, &frame));
+
+  nghttp2_submit_request(session, NULL, reqnv, ARRLEN(reqnv), NULL, NULL);
+
+  datalen = nghttp2_session_mem_send(session, &data);
+
+  CU_ASSERT(NGHTTP2_ERR_CALLBACK_FAILURE == datalen);
+  CU_ASSERT(1 == user_data.stream_close_cb_called);
+
+  nghttp2_frame_goaway_free(&frame.goaway, mem);
+  nghttp2_session_del(session);
 }
 
 void test_nghttp2_session_on_window_update_received(void) {
@@ -4373,8 +4401,7 @@ void test_nghttp2_session_on_window_update_received(void) {
   CU_ASSERT(NGHTTP2_INITIAL_WINDOW_SIZE + 16 * 1024 ==
             stream->remote_window_size);
 
-  CU_ASSERT(0 == nghttp2_stream_defer_item(
-                     stream, NGHTTP2_STREAM_FLAG_DEFERRED_FLOW_CONTROL));
+  nghttp2_stream_defer_item(stream, NGHTTP2_STREAM_FLAG_DEFERRED_FLOW_CONTROL);
 
   CU_ASSERT(0 == nghttp2_session_on_window_update_received(session, &frame));
   CU_ASSERT(2 == user_data.frame_recv_cb_called);
@@ -9640,9 +9667,7 @@ void test_nghttp2_session_stream_get_state(void) {
   /* Create idle stream by PRIORITY frame */
   nghttp2_frame_priority_init(&frame.priority, 7, &pri_spec_default);
 
-  rv = nghttp2_frame_pack_priority(&bufs, &frame.priority);
-
-  CU_ASSERT(0 == rv);
+  nghttp2_frame_pack_priority(&bufs, &frame.priority);
 
   nghttp2_frame_priority_free(&frame.priority);
 
@@ -11848,9 +11873,7 @@ void test_nghttp2_session_server_fallback_rfc7540_priorities(void) {
   nghttp2_priority_spec_init(&pri_spec, 5, 1, 0);
   nghttp2_frame_priority_init(&frame.priority, 1, &pri_spec);
   nghttp2_bufs_reset(&bufs);
-  rv = nghttp2_frame_pack_priority(&bufs, &frame.priority);
-
-  CU_ASSERT(0 == rv);
+  nghttp2_frame_pack_priority(&bufs, &frame.priority);
 
   nghttp2_frame_priority_free(&frame.priority);
 

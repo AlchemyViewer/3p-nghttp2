@@ -24,12 +24,12 @@
 
 cmake_minimum_required(VERSION 3.0)
 # XXX using 1.8.90 instead of 1.9.0-DEV
-project(nghttp2 VERSION 1.52.0)
+project(nghttp2 VERSION 1.56.0)
 
 # See versioning rule:
 #  https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 set(LT_CURRENT  38)
-set(LT_REVISION 1)
+set(LT_REVISION 4)
 set(LT_AGE      24)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
@@ -61,9 +61,9 @@ find_package(Libev 4.11)
 find_package(Libcares 1.7.5)
 find_package(ZLIB 1.2.3)
 find_package(Libngtcp2 0.0.0)
-find_package(Libngtcp2_crypto_openssl 0.0.0)
-if(LIBNGTCP2_CRYPTO_OPENSSL_FOUND)
-  set(HAVE_LIBNGTCP2_CRYPTO_OPENSSL 1)
+find_package(Libngtcp2_crypto_quictls 0.0.0)
+if(LIBNGTCP2_CRYPTO_QUICTLS_FOUND)
+  set(HAVE_LIBNGTCP2_CRYPTO_QUICTLS 1)
 endif()
 find_package(Libnghttp3 0.0.0)
 if(WITH_LIBBPF)
@@ -238,9 +238,9 @@ if(ENABLE_APP AND NOT (ZLIB_FOUND AND OPENSSL_FOUND AND LIBEV_FOUND))
   message(FATAL_ERROR "Applications were requested (ENABLE_APP=1) but dependencies are not met.")
 endif()
 
-# HTTP/3 requires quictls/openssl, libngtcp2, libngtcp2_crypto_openssl
+# HTTP/3 requires quictls/openssl, libngtcp2, libngtcp2_crypto_quictls
 # and libnghttp3.
-if(ENABLE_HTTP3 AND NOT (HAVE_SSL_IS_QUIC AND LIBNGTCP2_FOUND AND LIBNGTCP2_CRYPTO_OPENSSL_FOUND AND LIBNGHTTP3_FOUND))
+if(ENABLE_HTTP3 AND NOT (HAVE_SSL_IS_QUIC AND LIBNGTCP2_FOUND AND LIBNGTCP2_CRYPTO_QUICTLS_FOUND AND LIBNGHTTP3_FOUND))
   message(FATAL_ERROR "HTTP/3 was requested (ENABLE_HTTP3=1) but dependencies are not met.")
 endif()
 
@@ -273,6 +273,7 @@ check_include_file("inttypes.h"     HAVE_INTTYPES_H)
 check_include_file("limits.h"       HAVE_LIMITS_H)
 check_include_file("netdb.h"        HAVE_NETDB_H)
 check_include_file("netinet/in.h"   HAVE_NETINET_IN_H)
+check_include_file("netinet/ip.h"   HAVE_NETINET_IP_H)
 check_include_file("pwd.h"          HAVE_PWD_H)
 check_include_file("sys/socket.h"   HAVE_SYS_SOCKET_H)
 check_include_file("sys/time.h"     HAVE_SYS_TIME_H)
@@ -513,7 +514,7 @@ message(STATUS "summary of build options:
       Libev:          ${HAVE_LIBEV} (LIBS='${LIBEV_LIBRARIES}')
       Libc-ares:      ${HAVE_LIBCARES} (LIBS='${LIBCARES_LIBRARIES}')
       Libngtcp2:      ${HAVE_LIBNGTCP2} (LIBS='${LIBNGTCP2_LIBRARIES}')
-      Libngtcp2_crypto_openssl: ${HAVE_LIBNGTCP2_CRYPTO_OPENSSL} (LIBS='${LIBNGTCP2_CRYPTO_OPENSSL_LIBRARIES}')
+      Libngtcp2_crypto_quictls: ${HAVE_LIBNGTCP2_CRYPTO_QUICTLS} (LIBS='${LIBNGTCP2_CRYPTO_QUICTLS_LIBRARIES}')
       Libnghttp3:     ${HAVE_LIBNGHTTP3} (LIBS='${LIBNGHTTP3_LIBRARIES}')
       Libbpf:         ${HAVE_LIBBPF} (LIBS='${LIBBPF_LIBRARIES}')
       Libevent(SSL):  ${HAVE_LIBEVENT_OPENSSL} (LIBS='${LIBEVENT_OPENSSL_LIBRARIES}')
