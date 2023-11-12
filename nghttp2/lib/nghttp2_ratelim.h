@@ -1,7 +1,7 @@
 /*
  * nghttp2 - HTTP/2 C Library
  *
- * Copyright (c) 2013 Tatsuhiro Tsujikawa
+ * Copyright (c) 2023 nghttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,33 +22,36 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef SHRPX_HTTP2_TEST_H
-#define SHRPX_HTTP2_TEST_H
+#ifndef NGHTTP2_RATELIM_H
+#define NGHTTP2_RATELIM_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif /* HAVE_CONFIG_H */
 
-namespace shrpx {
+#include <nghttp2/nghttp2.h>
 
-void test_http2_add_header(void);
-void test_http2_get_header(void);
-void test_http2_copy_headers_to_nva(void);
-void test_http2_build_http1_headers_from_headers(void);
-void test_http2_lws(void);
-void test_http2_rewrite_location_uri(void);
-void test_http2_parse_http_status_code(void);
-void test_http2_index_header(void);
-void test_http2_lookup_token(void);
-void test_http2_parse_link_header(void);
-void test_http2_path_join(void);
-void test_http2_normalize_path(void);
-void test_http2_rewrite_clean_path(void);
-void test_http2_get_pure_path_component(void);
-void test_http2_construct_push_component(void);
-void test_http2_contains_trailers(void);
-void test_http2_check_transfer_encoding(void);
+typedef struct nghttp2_ratelim {
+  /* burst is the maximum value of val. */
+  uint64_t burst;
+  /* rate is the amount of value that is regenerated per 1 tstamp. */
+  uint64_t rate;
+  /* val is the amount of value available to drain. */
+  uint64_t val;
+  /* tstamp is the last timestamp in second resolution that is known
+     to this object. */
+  uint64_t tstamp;
+} nghttp2_ratelim;
 
-} // namespace shrpx
+/* nghttp2_ratelim_init initializes |rl| with the given parameters. */
+void nghttp2_ratelim_init(nghttp2_ratelim *rl, uint64_t burst, uint64_t rate);
 
-#endif // SHRPX_HTTP2_TEST_H
+/* nghttp2_ratelim_update updates rl->val with the current |tstamp|
+   given in second resolution. */
+void nghttp2_ratelim_update(nghttp2_ratelim *rl, uint64_t tstamp);
+
+/* nghttp2_ratelim_drain drains |n| from rl->val.  It returns 0 if it
+   succeeds, or -1. */
+int nghttp2_ratelim_drain(nghttp2_ratelim *rl, uint64_t n);
+
+#endif /* NGHTTP2_RATELIM_H */
