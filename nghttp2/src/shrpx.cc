@@ -1675,10 +1675,10 @@ pid_t fork_worker_process(
     }
 #endif // ENABLE_HTTP3
 
-    close(worker_process_ready_ipc_fd[0]);
-    shutdown_worker_process_ready_ipc_watcher(EV_DEFAULT);
-
     if (!config->single_process) {
+      close(worker_process_ready_ipc_fd[0]);
+      shutdown_worker_process_ready_ipc_watcher(EV_DEFAULT);
+
       shutdown_signal_watchers(EV_DEFAULT);
     }
 
@@ -3324,15 +3324,17 @@ HTTP:
               in HTTP/2 frontend.
   --add-request-header=<HEADER>
               Specify additional header field to add to request header
-              set.  This  option just  appends header field  and won't
-              replace anything  already set.  This option  can be used
-              several  times   to  specify  multiple   header  fields.
+              set.   The field  name must  be lowercase.   This option
+              just  appends header  field and  won't replace  anything
+              already set.  This  option can be used  several times to
+              specify multiple header fields.
               Example: --add-request-header="foo: bar"
   --add-response-header=<HEADER>
               Specify  additional  header  field to  add  to  response
-              header set.   This option just appends  header field and
-              won't replace anything already  set.  This option can be
-              used several  times to  specify multiple  header fields.
+              header  set.  The  field name  must be  lowercase.  This
+              option  just  appends  header field  and  won't  replace
+              anything already  set.  This option can  be used several
+              times to specify multiple header fields.
               Example: --add-response-header="foo: bar"
   --request-header-field-buffer=<SIZE>
               Set maximum buffer size for incoming HTTP request header
@@ -3520,15 +3522,12 @@ HTTP/3 and QUIC:
               NEW_TOKEN frame in the previous connection.
   --frontend-quic-congestion-controller=<CC>
               Specify a congestion controller algorithm for a frontend
-              QUIC connection.  <CC> should  be one of "cubic", "bbr",
-              and "bbrv2".
+              QUIC  connection.   <CC>  should be  either  "cubic"  or
+              "bbr".
               Default: )"
       << (config->quic.upstream.congestion_controller == NGTCP2_CC_ALGO_CUBIC
               ? "cubic"
-              : (config->quic.upstream.congestion_controller ==
-                         NGTCP2_CC_ALGO_BBR
-                     ? "bbr"
-                     : "bbrv2"))
+              : "bbr")
       << R"(
   --frontend-quic-secret-file=<PATH>
               Path to file that contains secure random data to be used

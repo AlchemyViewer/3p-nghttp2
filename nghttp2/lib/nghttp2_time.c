@@ -1,7 +1,7 @@
 /*
  * nghttp2 - HTTP/2 C Library
  *
- * Copyright (c) 2013 Tatsuhiro Tsujikawa
+ * Copyright (c) 2023 nghttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,33 +22,41 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef SHRPX_HTTP2_TEST_H
-#define SHRPX_HTTP2_TEST_H
+#include "nghttp2_time.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // HAVE_CONFIG_H
+#ifdef HAVE_TIME_H
+#  include <time.h>
+#endif /* HAVE_TIME_H */
 
-namespace shrpx {
+#ifdef HAVE_SYSINFOAPI_H
+#  include <sysinfoapi.h>
+#endif /* HAVE_SYSINFOAPI_H */
 
-void test_http2_add_header(void);
-void test_http2_get_header(void);
-void test_http2_copy_headers_to_nva(void);
-void test_http2_build_http1_headers_from_headers(void);
-void test_http2_lws(void);
-void test_http2_rewrite_location_uri(void);
-void test_http2_parse_http_status_code(void);
-void test_http2_index_header(void);
-void test_http2_lookup_token(void);
-void test_http2_parse_link_header(void);
-void test_http2_path_join(void);
-void test_http2_normalize_path(void);
-void test_http2_rewrite_clean_path(void);
-void test_http2_get_pure_path_component(void);
-void test_http2_construct_push_component(void);
-void test_http2_contains_trailers(void);
-void test_http2_check_transfer_encoding(void);
+#if !defined(HAVE_GETTICKCOUNT64) || defined(__CYGWIN__)
+static uint64_t time_now_sec(void) {
+  time_t t = time(NULL);
 
-} // namespace shrpx
+  if (t == -1) {
+    return 0;
+  }
 
-#endif // SHRPX_HTTP2_TEST_H
+  return (uint64_t)t;
+}
+#endif /* !HAVE_GETTICKCOUNT64 || __CYGWIN__ */
+
+#if defined(HAVE_GETTICKCOUNT64) && !defined(__CYGWIN__)
+uint64_t nghttp2_time_now_sec(void) { return GetTickCount64() / 1000; }
+#elif defined(HAVE_CLOCK_GETTIME)
+uint64_t nghttp2_time_now_sec(void) {
+  struct timespec tp;
+  int rv = clock_gettime(CLOCK_MONOTONIC, &tp);
+
+  if (rv == -1) {
+    return time_now_sec();
+  }
+
+  return (uint64_t)tp.tv_sec;
+}
+#else  /* (!HAVE_CLOCK_GETTIME || __CYGWIN__) && !HAVE_GETTICKCOUNT64 */
+uint64_t nghttp2_time_now_sec(void) { return time_now_sec(); }
+#endif /* (!HAVE_CLOCK_GETTIME || __CYGWIN__) && !HAVE_GETTICKCOUNT64 */

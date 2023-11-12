@@ -1,7 +1,7 @@
 /*
  * nghttp2 - HTTP/2 C Library
  *
- * Copyright (c) 2013 Tatsuhiro Tsujikawa
+ * Copyright (c) 2023 nghttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,33 +22,54 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef SHRPX_HTTP2_TEST_H
-#define SHRPX_HTTP2_TEST_H
+#include "nghttp2_ratelim.h"
+#include "nghttp2_helper.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // HAVE_CONFIG_H
+void nghttp2_ratelim_init(nghttp2_ratelim *rl, uint64_t burst, uint64_t rate) {
+  rl->val = rl->burst = burst;
+  rl->rate = rate;
+  rl->tstamp = 0;
+}
 
-namespace shrpx {
+void nghttp2_ratelim_update(nghttp2_ratelim *rl, uint64_t tstamp) {
+  uint64_t d, gain;
 
-void test_http2_add_header(void);
-void test_http2_get_header(void);
-void test_http2_copy_headers_to_nva(void);
-void test_http2_build_http1_headers_from_headers(void);
-void test_http2_lws(void);
-void test_http2_rewrite_location_uri(void);
-void test_http2_parse_http_status_code(void);
-void test_http2_index_header(void);
-void test_http2_lookup_token(void);
-void test_http2_parse_link_header(void);
-void test_http2_path_join(void);
-void test_http2_normalize_path(void);
-void test_http2_rewrite_clean_path(void);
-void test_http2_get_pure_path_component(void);
-void test_http2_construct_push_component(void);
-void test_http2_contains_trailers(void);
-void test_http2_check_transfer_encoding(void);
+  if (tstamp == rl->tstamp) {
+    return;
+  }
 
-} // namespace shrpx
+  if (tstamp > rl->tstamp) {
+    d = tstamp - rl->tstamp;
+  } else {
+    d = 1;
+  }
 
-#endif // SHRPX_HTTP2_TEST_H
+  rl->tstamp = tstamp;
+
+  if (UINT64_MAX / d < rl->rate) {
+    rl->val = rl->burst;
+
+    return;
+  }
+
+  gain = rl->rate * d;
+
+  if (UINT64_MAX - gain < rl->val) {
+    rl->val = rl->burst;
+
+    return;
+  }
+
+  rl->val += gain;
+  rl->val = nghttp2_min(rl->val, rl->burst);
+}
+
+int nghttp2_ratelim_drain(nghttp2_ratelim *rl, uint64_t n) {
+  if (rl->val < n) {
+    return -1;
+  }
+
+  rl->val -= n;
+
+  return 0;
+}

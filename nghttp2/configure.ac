@@ -25,7 +25,7 @@ dnl Do not change user variables!
 dnl https://www.gnu.org/software/automake/manual/html_node/Flag-Variables-Ordering.html
 
 AC_PREREQ(2.61)
-AC_INIT([nghttp2], [1.56.0], [t-tujikawa@users.sourceforge.net])
+AC_INIT([nghttp2], [1.58.0], [t-tujikawa@users.sourceforge.net])
 AC_CONFIG_AUX_DIR([.])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
@@ -44,9 +44,9 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 dnl See versioning rule:
 dnl  https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
-AC_SUBST(LT_CURRENT, 38)
-AC_SUBST(LT_REVISION, 4)
-AC_SUBST(LT_AGE, 24)
+AC_SUBST(LT_CURRENT, 39)
+AC_SUBST(LT_REVISION, 1)
+AC_SUBST(LT_AGE, 25)
 
 major=`echo $PACKAGE_VERSION |cut -d. -f1 | sed -e "s/[^0-9]//g"`
 minor=`echo $PACKAGE_VERSION |cut -d. -f2 | sed -e "s/[^0-9]//g"`
@@ -233,7 +233,7 @@ fi
 save_CXXFLAGS="$CXXFLAGS"
 CXXFLAGS=
 
-AX_CXX_COMPILE_STDCXX([14], [noext], [optional])
+AX_CXX_COMPILE_STDCXX([14], [], [optional])
 
 CXX1XCXXFLAGS="$CXXFLAGS"
 CXXFLAGS="$save_CXXFLAGS"
@@ -508,7 +508,7 @@ fi
 # ngtcp2 (for src)
 have_libngtcp2=no
 if test "x${request_libngtcp2}" != "xno"; then
-  PKG_CHECK_MODULES([LIBNGTCP2], [libngtcp2 >= 0.19.0], [have_libngtcp2=yes],
+  PKG_CHECK_MODULES([LIBNGTCP2], [libngtcp2 >= 1.0.0], [have_libngtcp2=yes],
                     [have_libngtcp2=no])
   if test "x${have_libngtcp2}" = "xno"; then
     AC_MSG_NOTICE($LIBNGTCP2_PKG_ERRORS)
@@ -525,7 +525,7 @@ have_libngtcp2_crypto_quictls=no
 if test "x${have_ssl_is_quic}" = "xyes" &&
    test "x${request_libngtcp2}" != "xno"; then
   PKG_CHECK_MODULES([LIBNGTCP2_CRYPTO_QUICTLS],
-                    [libngtcp2_crypto_quictls >= 0.19.0],
+                    [libngtcp2_crypto_quictls >= 1.0.0],
                     [have_libngtcp2_crypto_quictls=yes],
                     [have_libngtcp2_crypto_quictls=no])
   if test "x${have_libngtcp2_crypto_quictls}" = "xno"; then
@@ -567,7 +567,7 @@ fi
 # nghttp3 (for src)
 have_libnghttp3=no
 if test "x${request_libnghttp3}" != "xno"; then
-  PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 0.15.0], [have_libnghttp3=yes],
+  PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 1.0.0], [have_libnghttp3=yes],
                     [have_libnghttp3=no])
   if test "x${have_libnghttp3}" = "xno"; then
     AC_MSG_NOTICE($LIBNGHTTP3_PKG_ERRORS)
@@ -855,6 +855,7 @@ AC_CHECK_HEADERS([ \
   string.h \
   sys/socket.h \
   sys/time.h \
+  sysinfoapi.h \
   syslog.h \
   time.h \
   unistd.h \
@@ -929,6 +930,7 @@ AC_FUNC_STRNLEN
 AC_CHECK_FUNCS([ \
   _Exit \
   accept4 \
+  clock_gettime \
   dup2 \
   getcwd \
   getpwnam \
@@ -953,6 +955,25 @@ AC_CHECK_FUNCS([ \
 
 AC_CHECK_FUNC([timerfd_create],
               [have_timerfd_create=yes], [have_timerfd_create=no])
+
+AC_MSG_CHECKING([checking for GetTickCount64])
+AC_LINK_IFELSE([AC_LANG_PROGRAM(
+[[
+#include <sysinfoapi.h>
+]],
+[[
+GetTickCount64();
+]])],
+[have_gettickcount64=yes],
+[have_gettickcount64=no])
+
+if test "x${have_gettickcount64}" = "xyes"; then
+  AC_MSG_RESULT([yes])
+  AC_DEFINE([HAVE_GETTICKCOUNT64], [1],
+            [Define to 1 if you have `GetTickCount64` function.])
+else
+  AC_MSG_RESULT([no])
+fi
 
 # For cygwin: we can link initgroups, so AC_CHECK_FUNCS succeeds, but
 # cygwin disables initgroups due to feature test macro magic with our
