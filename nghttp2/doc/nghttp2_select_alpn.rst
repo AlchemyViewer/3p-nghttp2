@@ -1,18 +1,14 @@
 
-nghttp2_select_next_protocol
-============================
+nghttp2_select_alpn
+===================
 
 Synopsis
 --------
 
 *#include <nghttp2/nghttp2.h>*
 
-.. function:: int nghttp2_select_next_protocol(unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen)
+.. function:: int nghttp2_select_alpn(const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen)
 
-    
-    .. warning::
-    
-      Deprecated.  Use `nghttp2_select_alpn` instead.
     
     A helper function for dealing with ALPN in server side.  The *in*
     contains peer's protocol list in preferable order.  The format of
@@ -52,8 +48,7 @@ Synopsis
                                         void *arg)
         {
             int rv;
-            rv = nghttp2_select_next_protocol((unsigned char**)out, outlen,
-                                              in, inlen);
+            rv = nghttp2_select_alpn(out, outlen, in, inlen);
             if (rv == -1) {
                 return SSL_TLSEXT_ERR_NOACK;
             }
