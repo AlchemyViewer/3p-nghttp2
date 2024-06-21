@@ -15,7 +15,7 @@ Synopsis
     This function retrieves the highest prioritized frame from the
     outbound queue and sends it to the remote peer.  It does this as
     many times as possible until the user callback
-    :type:`nghttp2_send_callback` returns
+    :type:`nghttp2_send_callback2` returns
     :enum:`nghttp2_error.NGHTTP2_ERR_WOULDBLOCK`, the outbound queue
     becomes empty or flow control is triggered (remote window size
     becomes depleted or maximum number of concurrent streams is
@@ -45,7 +45,7 @@ Synopsis
        :type:`nghttp2_on_frame_not_send_callback` is invoked.  Abort
        the following steps.
     
-    8. :type:`nghttp2_send_callback` is invoked one or more times to
+    8. :type:`nghttp2_send_callback2` is invoked one or more times to
        send the frame.
     
     9. :type:`nghttp2_on_frame_send_callback` is invoked.

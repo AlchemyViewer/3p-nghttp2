@@ -27,11 +27,13 @@ Synopsis
     assigned stream ID will be returned.  Otherwise, specify stream ID
     in *stream_id*.
     
-    The *pri_spec* is priority specification of this request.  ``NULL``
-    means the default priority (see
+    The *pri_spec* is a deprecated priority specification of this
+    request.  ``NULL`` means the default priority (see
     `nghttp2_priority_spec_default_init()`).  To specify the priority,
     use `nghttp2_priority_spec_init()`.  If *pri_spec* is not ``NULL``,
-    this function will copy its data members.
+    this function will copy its data members.  In the future release
+    after the end of 2024, this function will ignore *pri_spec* and
+    behave as if ``NULL`` is given.
     
     The ``pri_spec->weight`` must be in [:macro:`NGHTTP2_MIN_WEIGHT`,
     :macro:`NGHTTP2_MAX_WEIGHT`], inclusive.  If ``pri_spec->weight``
@@ -69,8 +71,8 @@ Synopsis
     
     This function is low-level in a sense that the application code can
     specify flags directly.  For usual HTTP request,
-    `nghttp2_submit_request()` is useful.  Likewise, for HTTP response,
-    prefer `nghttp2_submit_response()`.
+    `nghttp2_submit_request2()` is useful.  Likewise, for HTTP
+    response, prefer `nghttp2_submit_response2()`.
     
     This function returns newly assigned stream ID if it succeeds and
     *stream_id* is -1.  Otherwise, this function returns 0 if it

@@ -10,6 +10,10 @@ Synopsis
 .. function:: int nghttp2_submit_data(nghttp2_session *session, uint8_t flags, int32_t stream_id, const nghttp2_data_provider *data_prd)
 
     
+    .. warning::
+    
+      Deprecated.  Use `nghttp2_submit_data2()` instead.
+    
     Submits one or more DATA frames to the stream *stream_id*.  The
     data to be sent are provided by *data_prd*.  If *flags* contains
     :enum:`nghttp2_flag.NGHTTP2_FLAG_END_STREAM`, the last DATA frame

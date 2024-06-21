@@ -47,13 +47,31 @@ Macros
 .. macro:: NGHTTP2_DEFAULT_WEIGHT
 
     
+    .. warning::
+    
+      Deprecated.  :rfc:`7540` priorities are deprecated by
+      :rfc:`9113`.  Consider migrating to :rfc:`9218` extensible
+      prioritization scheme.
+    
     The default weight of stream dependency.
 .. macro:: NGHTTP2_MAX_WEIGHT
 
     
+    .. warning::
+    
+      Deprecated.  :rfc:`7540` priorities are deprecated by
+      :rfc:`9113`.  Consider migrating to :rfc:`9218` extensible
+      prioritization scheme.
+    
     The maximum weight of stream dependency.
 .. macro:: NGHTTP2_MIN_WEIGHT
 
+    
+    .. warning::
+    
+      Deprecated.  :rfc:`7540` priorities are deprecated by
+      :rfc:`9113`.  Consider migrating to :rfc:`9218` extensible
+      prioritization scheme.
     
     The minimum weight of stream dependency.
 .. macro:: NGHTTP2_MAX_WINDOW_SIZE

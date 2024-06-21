@@ -1,6 +1,10 @@
 
 Types (structs, unions and typedefs)
 ====================================
+.. type:: ptrdiff_t nghttp2_ssize
+
+    
+    :type:`nghttp2_ssize` is a signed counterpart of size_t.
 .. type:: nghttp2_session
 
     
@@ -114,7 +118,7 @@ Types (structs, unions and typedefs)
 
     
     This union represents the some kind of data source passed to
-    :type:`nghttp2_data_source_read_callback`.
+    :type:`nghttp2_data_source_read_callback2`.
 
     .. member::   int fd
 
@@ -125,6 +129,11 @@ Types (structs, unions and typedefs)
 
 .. type:: ssize_t (*nghttp2_data_source_read_callback)( nghttp2_session *session, int32_t stream_id, uint8_t *buf, size_t length, uint32_t *data_flags, nghttp2_data_source *source, void *user_data)
 
+    
+    .. warning::
+    
+      Deprecated.  Use :type:`nghttp2_data_source_read_callback2`
+      instead.
     
     Callback function invoked when the library wants to read data from
     the *source*.  The read data is sent in the stream *stream_id*.
@@ -185,8 +194,74 @@ Types (structs, unions and typedefs)
     :enum:`nghttp2_error.NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE`.
     Returning :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE` will
     signal the entire session failure.
+.. type:: nghttp2_ssize (*nghttp2_data_source_read_callback2)( nghttp2_session *session, int32_t stream_id, uint8_t *buf, size_t length, uint32_t *data_flags, nghttp2_data_source *source, void *user_data)
+
+    
+    Callback function invoked when the library wants to read data from
+    the *source*.  The read data is sent in the stream *stream_id*.
+    The implementation of this function must read at most *length*
+    bytes of data from *source* (or possibly other places) and store
+    them in *buf* and return number of data stored in *buf*.  If EOF is
+    reached, set :enum:`nghttp2_data_flag.NGHTTP2_DATA_FLAG_EOF` flag
+    in *\*data_flags*.
+    
+    Sometime it is desirable to avoid copying data into *buf* and let
+    application to send data directly.  To achieve this, set
+    :enum:`nghttp2_data_flag.NGHTTP2_DATA_FLAG_NO_COPY` to
+    *\*data_flags* (and possibly other flags, just like when we do
+    copy), and return the number of bytes to send without copying data
+    into *buf*.  The library, seeing
+    :enum:`nghttp2_data_flag.NGHTTP2_DATA_FLAG_NO_COPY`, will invoke
+    :type:`nghttp2_send_data_callback`.  The application must send
+    complete DATA frame in that callback.
+    
+    If this callback is set by `nghttp2_submit_request2()`,
+    `nghttp2_submit_response2()` or `nghttp2_submit_headers()` and
+    `nghttp2_submit_data2()` with flag parameter
+    :enum:`nghttp2_flag.NGHTTP2_FLAG_END_STREAM` set, and
+    :enum:`nghttp2_data_flag.NGHTTP2_DATA_FLAG_EOF` flag is set to
+    *\*data_flags*, DATA frame will have END_STREAM flag set.  Usually,
+    this is expected behaviour and all are fine.  One exception is send
+    trailer fields.  You cannot send trailer fields after sending frame
+    with END_STREAM set.  To avoid this problem, one can set
+    :enum:`nghttp2_data_flag.NGHTTP2_DATA_FLAG_NO_END_STREAM` along
+    with :enum:`nghttp2_data_flag.NGHTTP2_DATA_FLAG_EOF` to signal the
+    library not to set END_STREAM in DATA frame.  Then application can
+    use `nghttp2_submit_trailer()` to send trailer fields.
+    `nghttp2_submit_trailer()` can be called inside this callback.
+    
+    If the application wants to postpone DATA frames (e.g.,
+    asynchronous I/O, or reading data blocks for long time), it is
+    achieved by returning :enum:`nghttp2_error.NGHTTP2_ERR_DEFERRED`
+    without reading any data in this invocation.  The library removes
+    DATA frame from the outgoing queue temporarily.  To move back
+    deferred DATA frame to outgoing queue, call
+    `nghttp2_session_resume_data()`.
+    
+    By default, *length* is limited to 16KiB at maximum.  If peer
+    allows larger frames, application can enlarge transmission buffer
+    size.  See :type:`nghttp2_data_source_read_length_callback` for
+    more details.
+    
+    If the application just wants to return from
+    `nghttp2_session_send()` or `nghttp2_session_mem_send2()` without
+    sending anything, return :enum:`nghttp2_error.NGHTTP2_ERR_PAUSE`.
+    
+    In case of error, there are 2 choices. Returning
+    :enum:`nghttp2_error.NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE` will
+    close the stream by issuing RST_STREAM with
+    :enum:`nghttp2_error_code.NGHTTP2_INTERNAL_ERROR`.  If a different
+    error code is desirable, use `nghttp2_submit_rst_stream()` with a
+    desired error code and then return
+    :enum:`nghttp2_error.NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE`.
+    Returning :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE` will
+    signal the entire session failure.
 .. type:: nghttp2_data_provider
 
+    
+    .. warning::
+    
+      Deprecated.  Use :type:`nghttp2_data_provider2` instead.
     
     This struct represents the data source and the way to read a chunk
     of data from it.
@@ -195,6 +270,19 @@ Types (structs, unions and typedefs)
 
         The data source.
     .. member::   nghttp2_data_source_read_callback read_callback
+
+        The callback function to read a chunk of data from the *source*.
+
+.. type:: nghttp2_data_provider2
+
+    
+    This struct represents the data source and the way to read a chunk
+    of data from it.
+
+    .. member::   nghttp2_data_source source
+
+        The data source.
+    .. member::   nghttp2_data_source_read_callback2 read_callback
 
         The callback function to read a chunk of data from the *source*.
 
@@ -211,6 +299,12 @@ Types (structs, unions and typedefs)
 
 .. type:: nghttp2_priority_spec
 
+    
+    .. warning::
+    
+      Deprecated.  :rfc:`7540` priorities are deprecated by
+      :rfc:`9113`.  Consider migrating to :rfc:`9218` extensible
+      prioritization scheme.
     
     The structure to specify stream dependency.
 
@@ -239,6 +333,12 @@ Types (structs, unions and typedefs)
         and PAD_LOW.
     .. member::   nghttp2_priority_spec pri_spec
 
+        .. warning::
+        
+          Deprecated.  :rfc:`7540` priorities are deprecated by
+          :rfc:`9113`.  Consider migrating to :rfc:`9218` extensible
+          prioritization scheme.
+        
         The priority specification
     .. member::   nghttp2_nv *nva
 
@@ -252,6 +352,12 @@ Types (structs, unions and typedefs)
 
 .. type:: nghttp2_priority
 
+    
+    .. warning::
+    
+      Deprecated.  :rfc:`7540` priorities are deprecated by
+      :rfc:`9113`.  Consider migrating to :rfc:`9218` extensible
+      prioritization scheme.
     
     The PRIORITY frame.  It has the following members:
 
@@ -440,6 +546,10 @@ Types (structs, unions and typedefs)
 .. type:: ssize_t (*nghttp2_send_callback)(nghttp2_session *session, const uint8_t *data, size_t length, int flags, void *user_data)
 
     
+    .. warning::
+    
+      Deprecated.  Use :type:`nghttp2_send_callback2` instead.
+    
     Callback function invoked when *session* wants to send data to the
     remote peer.  The implementation of this function must send at most
     *length* bytes of data stored in *data*.  The *flags* is currently
@@ -458,6 +568,36 @@ Types (structs, unions and typedefs)
     
     To set this callback to :type:`nghttp2_session_callbacks`, use
     `nghttp2_session_callbacks_set_send_callback()`.
+    
+    .. note::
+    
+      The *length* may be very small.  If that is the case, and
+      application disables Nagle algorithm (``TCP_NODELAY``), then just
+      writing *data* to the network stack leads to very small packet,
+      and it is very inefficient.  An application should be responsible
+      to buffer up small chunks of data as necessary to avoid this
+      situation.
+.. type:: nghttp2_ssize (*nghttp2_send_callback2)(nghttp2_session *session, const uint8_t *data, size_t length, int flags, void *user_data)
+
+    
+    Callback function invoked when *session* wants to send data to the
+    remote peer.  The implementation of this function must send at most
+    *length* bytes of data stored in *data*.  The *flags* is currently
+    not used and always 0. It must return the number of bytes sent if
+    it succeeds.  If it cannot send any single byte without blocking,
+    it must return :enum:`nghttp2_error.NGHTTP2_ERR_WOULDBLOCK`.  For
+    other errors, it must return
+    :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  The
+    *user_data* pointer is the third argument passed in to the call to
+    `nghttp2_session_client_new()` or `nghttp2_session_server_new()`.
+    
+    This callback is required if the application uses
+    `nghttp2_session_send()` to send data to the remote endpoint.  If
+    the application uses solely `nghttp2_session_mem_send2()` instead,
+    this callback function is unnecessary.
+    
+    To set this callback to :type:`nghttp2_session_callbacks`, use
+    `nghttp2_session_callbacks_set_send_callback2()`.
     
     .. note::
     
@@ -497,7 +637,7 @@ Types (structs, unions and typedefs)
     error; if partial frame data has already sent, it is impossible to
     send another data in that state, and all we can do is tear down
     connection).  When data is fully processed, but application wants
-    to make `nghttp2_session_mem_send()` or `nghttp2_session_send()`
+    to make `nghttp2_session_mem_send2()` or `nghttp2_session_send()`
     return immediately without processing next frames, return
     :enum:`nghttp2_error.NGHTTP2_ERR_PAUSE`.  If application decided to
     reset this stream, return
@@ -509,6 +649,10 @@ Types (structs, unions and typedefs)
     as :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE` is returned.
 .. type:: ssize_t (*nghttp2_recv_callback)(nghttp2_session *session, uint8_t *buf, size_t length, int flags, void *user_data)
 
+    
+    .. warning::
+    
+      Deprecated.  Use :type:`nghttp2_recv_callback2` instead.
     
     Callback function invoked when *session* wants to receive data from
     the remote peer.  The implementation of this function must read at
@@ -532,11 +676,36 @@ Types (structs, unions and typedefs)
     
     To set this callback to :type:`nghttp2_session_callbacks`, use
     `nghttp2_session_callbacks_set_recv_callback()`.
+.. type:: nghttp2_ssize (*nghttp2_recv_callback2)(nghttp2_session *session, uint8_t *buf, size_t length, int flags, void *user_data)
+
+    
+    Callback function invoked when *session* wants to receive data from
+    the remote peer.  The implementation of this function must read at
+    most *length* bytes of data and store it in *buf*.  The *flags* is
+    currently not used and always 0.  It must return the number of
+    bytes written in *buf* if it succeeds.  If it cannot read any
+    single byte without blocking, it must return
+    :enum:`nghttp2_error.NGHTTP2_ERR_WOULDBLOCK`.  If it gets EOF
+    before it reads any single byte, it must return
+    :enum:`nghttp2_error.NGHTTP2_ERR_EOF`.  For other errors, it must
+    return :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
+    Returning 0 is treated as
+    :enum:`nghttp2_error.NGHTTP2_ERR_WOULDBLOCK`.  The *user_data*
+    pointer is the third argument passed in to the call to
+    `nghttp2_session_client_new()` or `nghttp2_session_server_new()`.
+    
+    This callback is required if the application uses
+    `nghttp2_session_recv()` to receive data from the remote endpoint.
+    If the application uses solely `nghttp2_session_mem_recv2()`
+    instead, this callback function is unnecessary.
+    
+    To set this callback to :type:`nghttp2_session_callbacks`, use
+    `nghttp2_session_callbacks_set_recv_callback2()`.
 .. type:: int (*nghttp2_on_frame_recv_callback)(nghttp2_session *session, const nghttp2_frame *frame, void *user_data)
 
     
     Callback function invoked by `nghttp2_session_recv()` and
-    `nghttp2_session_mem_recv()` when a frame is received.  The
+    `nghttp2_session_mem_recv2()` when a frame is received.  The
     *user_data* pointer is the third argument passed in to the call to
     `nghttp2_session_client_new()` or `nghttp2_session_server_new()`.
     
@@ -554,8 +723,8 @@ Types (structs, unions and typedefs)
     
     The implementation of this function must return 0 if it succeeds.
     If nonzero value is returned, it is treated as fatal error and
-    `nghttp2_session_recv()` and `nghttp2_session_mem_recv()` functions
-    immediately return
+    `nghttp2_session_recv()` and `nghttp2_session_mem_recv2()`
+    functions immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
     
     To set this callback to :type:`nghttp2_session_callbacks`, use
@@ -564,7 +733,7 @@ Types (structs, unions and typedefs)
 
     
     Callback function invoked by `nghttp2_session_recv()` and
-    `nghttp2_session_mem_recv()` when an invalid non-DATA frame is
+    `nghttp2_session_mem_recv2()` when an invalid non-DATA frame is
     received.  The error is indicated by the *lib_error_code*, which is
     one of the values defined in :type:`nghttp2_error`.  When this
     callback function is invoked, the library automatically submits
@@ -578,8 +747,8 @@ Types (structs, unions and typedefs)
     
     The implementation of this function must return 0 if it succeeds.
     If nonzero is returned, it is treated as fatal error and
-    `nghttp2_session_recv()` and `nghttp2_session_mem_recv()` functions
-    immediately return
+    `nghttp2_session_recv()` and `nghttp2_session_mem_recv2()`
+    functions immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
     
     To set this callback to :type:`nghttp2_session_callbacks`, use
@@ -597,19 +766,19 @@ Types (structs, unions and typedefs)
     argument passed in to the call to `nghttp2_session_client_new()` or
     `nghttp2_session_server_new()`.
     
-    If the application uses `nghttp2_session_mem_recv()`, it can return
-    :enum:`nghttp2_error.NGHTTP2_ERR_PAUSE` to make
-    `nghttp2_session_mem_recv()` return without processing further
+    If the application uses `nghttp2_session_mem_recv2()`, it can
+    return :enum:`nghttp2_error.NGHTTP2_ERR_PAUSE` to make
+    `nghttp2_session_mem_recv2()` return without processing further
     input bytes.  The memory by pointed by the *data* is retained until
-    `nghttp2_session_mem_recv()` or `nghttp2_session_recv()` is called.
-    The application must retain the input bytes which was used to
-    produce the *data* parameter, because it may refer to the memory
+    `nghttp2_session_mem_recv2()` or `nghttp2_session_recv()` is
+    called.  The application must retain the input bytes which was used
+    to produce the *data* parameter, because it may refer to the memory
     region included in the input bytes.
     
     The implementation of this function must return 0 if it succeeds.
     If nonzero is returned, it is treated as fatal error, and
-    `nghttp2_session_recv()` and `nghttp2_session_mem_recv()` functions
-    immediately return
+    `nghttp2_session_recv()` and `nghttp2_session_mem_recv2()`
+    functions immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
     
     To set this callback to :type:`nghttp2_session_callbacks`, use
@@ -629,8 +798,8 @@ Types (structs, unions and typedefs)
     If there is a fatal error while executing this callback, the
     implementation should return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`, which makes
-    `nghttp2_session_send()` and `nghttp2_session_mem_send()` functions
-    immediately return
+    `nghttp2_session_send()` and `nghttp2_session_mem_send2()`
+    functions immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
     
     If the other value is returned, it is treated as if
@@ -649,8 +818,8 @@ Types (structs, unions and typedefs)
     
     The implementation of this function must return 0 if it succeeds.
     If nonzero is returned, it is treated as fatal error and
-    `nghttp2_session_send()` and `nghttp2_session_mem_send()` functions
-    immediately return
+    `nghttp2_session_send()` and `nghttp2_session_mem_send2()`
+    functions immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
     
     To set this callback to :type:`nghttp2_session_callbacks`, use
@@ -667,8 +836,8 @@ Types (structs, unions and typedefs)
     
     The implementation of this function must return 0 if it succeeds.
     If nonzero is returned, it is treated as fatal error and
-    `nghttp2_session_send()` and `nghttp2_session_mem_send()` functions
-    immediately return
+    `nghttp2_session_send()` and `nghttp2_session_mem_send2()`
+    functions immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
     
     `nghttp2_session_get_stream_user_data()` can be used to get
@@ -683,7 +852,7 @@ Types (structs, unions and typedefs)
     The reason of closure is indicated by the *error_code*.  The
     *error_code* is usually one of :enum:`nghttp2_error_code`, but that
     is not guaranteed.  The stream_user_data, which was specified in
-    `nghttp2_submit_request()` or `nghttp2_submit_headers()`, is still
+    `nghttp2_submit_request2()` or `nghttp2_submit_headers()`, is still
     available in this function.  The *user_data* pointer is the third
     argument passed in to the call to `nghttp2_session_client_new()` or
     `nghttp2_session_server_new()`.
@@ -692,8 +861,8 @@ Types (structs, unions and typedefs)
     
     The implementation of this function must return 0 if it succeeds.
     If nonzero is returned, it is treated as fatal error and
-    `nghttp2_session_recv()`, `nghttp2_session_mem_recv()`,
-    `nghttp2_session_send()`, and `nghttp2_session_mem_send()`
+    `nghttp2_session_recv()`, `nghttp2_session_mem_recv2()`,
+    `nghttp2_session_send()`, and `nghttp2_session_mem_send2()`
     functions immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
     
@@ -757,7 +926,7 @@ Types (structs, unions and typedefs)
     value is returned, it is treated as if
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE` is returned.  If
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE` is returned,
-    `nghttp2_session_mem_recv()` function will immediately return
+    `nghttp2_session_mem_recv2()` function will immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
     
     To set this callback to :type:`nghttp2_session_callbacks`, use
@@ -797,11 +966,11 @@ Types (structs, unions and typedefs)
     performs validation based on HTTP Messaging rule, which is briefly
     explained in :ref:`http-messaging` section.
     
-    If the application uses `nghttp2_session_mem_recv()`, it can return
-    :enum:`nghttp2_error.NGHTTP2_ERR_PAUSE` to make
-    `nghttp2_session_mem_recv()` return without processing further
+    If the application uses `nghttp2_session_mem_recv2()`, it can
+    return :enum:`nghttp2_error.NGHTTP2_ERR_PAUSE` to make
+    `nghttp2_session_mem_recv2()` return without processing further
     input bytes.  The memory pointed by *frame*, *name* and *value*
-    parameters are retained until `nghttp2_session_mem_recv()` or
+    parameters are retained until `nghttp2_session_mem_recv2()` or
     `nghttp2_session_recv()` is called.  The application must retain
     the input bytes which was used to produce these parameters, because
     it may refer to the memory region included in the input bytes.
@@ -828,8 +997,8 @@ Types (structs, unions and typedefs)
     nonzero value is returned, it is treated as
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  If
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE` is returned,
-    `nghttp2_session_recv()` and `nghttp2_session_mem_recv()` functions
-    immediately return
+    `nghttp2_session_recv()` and `nghttp2_session_mem_recv2()`
+    functions immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
     
     To set this callback to :type:`nghttp2_session_callbacks`, use
@@ -922,6 +1091,11 @@ Types (structs, unions and typedefs)
 .. type:: ssize_t (*nghttp2_select_padding_callback)(nghttp2_session *session, const nghttp2_frame *frame, size_t max_payloadlen, void *user_data)
 
     
+    .. warning::
+    
+      Deprecated.  Use :type:`nghttp2_select_padding_callback2`
+      instead.
+    
     Callback function invoked when the library asks application how
     many padding bytes are required for the transmission of the
     *frame*.  The application must choose the total length of payload
@@ -936,8 +1110,30 @@ Types (structs, unions and typedefs)
     
     To set this callback to :type:`nghttp2_session_callbacks`, use
     `nghttp2_session_callbacks_set_select_padding_callback()`.
+.. type:: nghttp2_ssize (*nghttp2_select_padding_callback2)( nghttp2_session *session, const nghttp2_frame *frame, size_t max_payloadlen, void *user_data)
+
+    
+    Callback function invoked when the library asks application how
+    many padding bytes are required for the transmission of the
+    *frame*.  The application must choose the total length of payload
+    including padded bytes in range [frame->hd.length, max_payloadlen],
+    inclusive.  Choosing number not in this range will be treated as
+    :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  Returning
+    ``frame->hd.length`` means no padding is added.  Returning
+    :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE` will make
+    `nghttp2_session_send()` and `nghttp2_session_mem_send2()`
+    functions immediately return
+    :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
+    
+    To set this callback to :type:`nghttp2_session_callbacks`, use
+    `nghttp2_session_callbacks_set_select_padding_callback2()`.
 .. type:: ssize_t (*nghttp2_data_source_read_length_callback)( nghttp2_session *session, uint8_t frame_type, int32_t stream_id, int32_t session_remote_window_size, int32_t stream_remote_window_size, uint32_t remote_max_frame_size, void *user_data)
 
+    
+    .. warning::
+    
+      Deprecated.  Use
+      :type:`nghttp2_data_source_read_length_callback2` instead.
     
     Callback function invoked when library wants to get max length of
     data to send data to the remote peer.  The implementation of this
@@ -960,6 +1156,30 @@ Types (structs, unions and typedefs)
     
     To set this callback to :type:`nghttp2_session_callbacks`, use
     `nghttp2_session_callbacks_set_data_source_read_length_callback()`.
+.. type:: nghttp2_ssize (*nghttp2_data_source_read_length_callback2)( nghttp2_session *session, uint8_t frame_type, int32_t stream_id, int32_t session_remote_window_size, int32_t stream_remote_window_size, uint32_t remote_max_frame_size, void *user_data)
+
+    
+    Callback function invoked when library wants to get max length of
+    data to send data to the remote peer.  The implementation of this
+    function should return a value in the following range.  [1,
+    min(*session_remote_window_size*, *stream_remote_window_size*,
+    *remote_max_frame_size*)].  If a value greater than this range is
+    returned than the max allow value will be used.  Returning a value
+    smaller than this range is treated as
+    :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  The
+    *frame_type* is provided for future extensibility and identifies
+    the type of frame (see :type:`nghttp2_frame_type`) for which to get
+    the length for.  Currently supported frame types are:
+    :enum:`nghttp2_frame_type.NGHTTP2_DATA`.
+    
+    This callback can be used to control the length in bytes for which
+    :type:`nghttp2_data_source_read_callback` is allowed to send to the
+    remote endpoint.  This callback is optional.  Returning
+    :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE` will signal the
+    entire session failure.
+    
+    To set this callback to :type:`nghttp2_session_callbacks`, use
+    `nghttp2_session_callbacks_set_data_source_read_length_callback2()`.
 .. type:: int (*nghttp2_on_begin_frame_callback)(nghttp2_session *session, const nghttp2_frame_hd *hd, void *user_data)
 
     
@@ -976,8 +1196,8 @@ Types (structs, unions and typedefs)
     
     The implementation of this function must return 0 if it succeeds.
     If nonzero value is returned, it is treated as fatal error and
-    `nghttp2_session_recv()` and `nghttp2_session_mem_recv()` functions
-    immediately return
+    `nghttp2_session_recv()` and `nghttp2_session_mem_recv2()`
+    functions immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
     
     To set this callback to :type:`nghttp2_session_callbacks`, use
@@ -996,8 +1216,8 @@ Types (structs, unions and typedefs)
     
     If fatal error occurred, application should return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  In this case,
-    `nghttp2_session_recv()` and `nghttp2_session_mem_recv()` functions
-    immediately return
+    `nghttp2_session_recv()` and `nghttp2_session_mem_recv2()`
+    functions immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  If the other
     values are returned, currently they are treated as
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
@@ -1029,13 +1249,18 @@ Types (structs, unions and typedefs)
     
     If fatal error occurred, application should return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  In this case,
-    `nghttp2_session_recv()` and `nghttp2_session_mem_recv()` functions
-    immediately return
+    `nghttp2_session_recv()` and `nghttp2_session_mem_recv2()`
+    functions immediately return
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  If the other
     values are returned, currently they are treated as
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
 .. type:: ssize_t (*nghttp2_pack_extension_callback)(nghttp2_session *session, uint8_t *buf, size_t len, const nghttp2_frame *frame, void *user_data)
 
+    
+    .. warning::
+    
+      Deprecated.  Use :type:`nghttp2_pack_extension_callback2`
+      instead.
     
     Callback function invoked when library asks the application to pack
     extension payload in its wire format.  The frame header will be
@@ -1061,17 +1286,45 @@ Types (structs, unions and typedefs)
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  If the return
     value is strictly larger than *len*, it is treated as
     :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
+.. type:: nghttp2_ssize (*nghttp2_pack_extension_callback2)( nghttp2_session *session, uint8_t *buf, size_t len, const nghttp2_frame *frame, void *user_data)
+
+    
+    Callback function invoked when library asks the application to pack
+    extension payload in its wire format.  The frame header will be
+    packed by library.  Application must pack payload only.
+    ``frame->ext.payload`` is the object passed to
+    `nghttp2_submit_extension()` as payload parameter.  Application
+    must pack extension payload to the *buf* of its capacity *len*
+    bytes.  The *len* is at least 16KiB.
+    
+    The implementation of this function should return the number of
+    bytes written into *buf* when it succeeds.
+    
+    To abort processing this extension frame, return
+    :enum:`nghttp2_error.NGHTTP2_ERR_CANCEL`, and
+    :type:`nghttp2_on_frame_not_send_callback` will be invoked.
+    
+    If fatal error occurred, application should return
+    :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  In this case,
+    `nghttp2_session_send()` and `nghttp2_session_mem_send2()`
+    functions immediately return
+    :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  If the other
+    values are returned, currently they are treated as
+    :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.  If the return
+    value is strictly larger than *len*, it is treated as
+    :enum:`nghttp2_error.NGHTTP2_ERR_CALLBACK_FAILURE`.
 .. type:: int (*nghttp2_error_callback)(nghttp2_session *session, const char *msg, size_t len, void *user_data)
 
+    
+    .. warning::
+    
+      Deprecated.  Use :type:`nghttp2_error_callback2` instead.
     
     Callback function invoked when library provides the error message
     intended for human consumption.  This callback is solely for
     debugging purpose.  The *msg* is typically NULL-terminated string
     of length *len*.  *len* does not include the sentinel NULL
     character.
-    
-    This function is deprecated.  The new application should use
-    :type:`nghttp2_error_callback2`.
     
     The format of error message may change between nghttp2 library
     versions.  The application should not depend on the particular

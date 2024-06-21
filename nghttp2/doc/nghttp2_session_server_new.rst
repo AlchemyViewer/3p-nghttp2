@@ -15,7 +15,7 @@ Synopsis
     does not store *callbacks*.  The *user_data* is an arbitrary user
     supplied data, which will be passed to the callback functions.
     
-    The :type:`nghttp2_send_callback` must be specified.  If the
+    The :type:`nghttp2_send_callback2` must be specified.  If the
     application code uses `nghttp2_session_recv()`, the
     :type:`nghttp2_recv_callback` must be specified.  The other members
     of *callbacks* can be ``NULL``.

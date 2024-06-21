@@ -10,6 +10,10 @@ Synopsis
 .. function:: ssize_t nghttp2_hd_deflate_hd_vec(nghttp2_hd_deflater *deflater, const nghttp2_vec *vec, size_t veclen, const nghttp2_nv *nva, size_t nvlen)
 
     
+    .. warning::
+    
+      Deprecated.  Use `nghttp2_hd_deflate_hd_vec2()` instead.
+    
     Deflates the *nva*, which has the *nvlen* name/value pairs, into
     the *veclen* size of buf vector *vec*.  The each size of buffer
     must be set in len field of :type:`nghttp2_vec`.  If and only if

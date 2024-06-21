@@ -12,4 +12,4 @@ Synopsis
     
     Sets callback function invoked when
     :enum:`nghttp2_data_flag.NGHTTP2_DATA_FLAG_NO_COPY` is used in
-    :type:`nghttp2_data_source_read_callback` to avoid data copy.
+    :type:`nghttp2_data_source_read_callback2` to avoid data copy.

@@ -10,6 +10,10 @@ Synopsis
 .. function:: ssize_t nghttp2_hd_deflate_hd(nghttp2_hd_deflater *deflater, uint8_t *buf, size_t buflen, const nghttp2_nv *nva, size_t nvlen)
 
     
+    .. warning::
+    
+      Deprecated.  Use `nghttp2_hd_deflate_hd2()` instead.
+    
     Deflates the *nva*, which has the *nvlen* name/value pairs, into
     the *buf* of length *buflen*.
     

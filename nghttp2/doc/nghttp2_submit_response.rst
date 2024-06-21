@@ -10,6 +10,10 @@ Synopsis
 .. function:: int nghttp2_submit_response(nghttp2_session *session, int32_t stream_id, const nghttp2_nv *nva, size_t nvlen, const nghttp2_data_provider *data_prd)
 
     
+    .. warning::
+    
+      Deprecated.  Use `nghttp2_submit_response2()` instead.
+    
     Submits response HEADERS frame and optionally one or more DATA
     frames against the stream *stream_id*.
     
