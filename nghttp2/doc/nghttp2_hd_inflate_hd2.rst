@@ -10,6 +10,10 @@ Synopsis
 .. function:: ssize_t nghttp2_hd_inflate_hd2(nghttp2_hd_inflater *inflater, nghttp2_nv *nv_out, int *inflate_flags, const uint8_t *in, size_t inlen, int in_final)
 
     
+    .. warning::
+    
+      Deprecated.  Use `nghttp2_hd_inflate_hd3()` instead.
+    
     Inflates name/value block stored in *in* with length *inlen*.  This
     function performs decompression.  For each successful emission of
     header name/value pair,

@@ -10,6 +10,10 @@ Synopsis
 .. function:: ssize_t nghttp2_session_mem_recv(nghttp2_session *session, const uint8_t *in, size_t inlen)
 
     
+    .. warning::
+    
+      Deprecated.  Use `nghttp2_session_mem_recv2()` instead.
+    
     Processes data *in* as an input from the remote endpoint.  The
     *inlen* indicates the number of bytes to receive in the *in*.
     

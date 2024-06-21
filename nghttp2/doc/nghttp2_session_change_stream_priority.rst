@@ -10,6 +10,13 @@ Synopsis
 .. function:: int nghttp2_session_change_stream_priority(nghttp2_session *session, int32_t stream_id, const nghttp2_priority_spec *pri_spec)
 
     
+    .. warning::
+    
+      Deprecated.  :rfc:`7540` priorities are deprecated by
+      :rfc:`9113`.  Consider migrating to :rfc:`9218` extensible
+      prioritization scheme.  In the future release after the end of
+      2024, this function will always return 0 without doing anything.
+    
     Changes priority of existing stream denoted by *stream_id*.  The
     new priority specification is *pri_spec*.
     

@@ -31,6 +31,12 @@ set(NGHTTP2_SOURCES
 )
 
 set(NGHTTP2_RES "")
+set(STATIC_LIB "nghttp2_static")
+set(SHARED_LIB "nghttp2")
+
+if(BUILD_SHARED_LIBS AND BUILD_STATIC_LIBS AND MSVC AND NOT STATIC_LIB_SUFFIX)
+  set(STATIC_LIB_SUFFIX "_static")
+endif()
 
 if(WIN32)
   configure_file(
@@ -41,55 +47,61 @@ if(WIN32)
   set(NGHTTP2_RES ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
 endif()
 
+set(EXPORT_SET "${PROJECT_NAME}-targets")
+
 # Public shared library
-if(ENABLE_SHARED_LIB)
-  add_library(nghttp2 SHARED ${NGHTTP2_SOURCES} ${NGHTTP2_RES})
-  set_target_properties(nghttp2 PROPERTIES
+if(BUILD_SHARED_LIBS)
+  add_library(${SHARED_LIB} SHARED ${NGHTTP2_SOURCES} ${NGHTTP2_RES})
+
+  set_target_properties(${SHARED_LIB} PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
     VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
     C_VISIBILITY_PRESET hidden
   )
-  target_include_directories(nghttp2 INTERFACE
-    "${CMAKE_CURRENT_BINARY_DIR}/includes"
-    "${CMAKE_CURRENT_SOURCE_DIR}/includes"
+
+  target_include_directories(${SHARED_LIB} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/includes>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/includes>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 
-  # <ALCHEMY>
-  if("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(nghttp2 PRIVATE /std:c++17 /permissive- /Zi $<$<CONFIG:Release>:/Ob3> $<$<CONFIG:Release>:/Gy> $<$<EQUAL:${CMAKE_SIZEOF_VOID_P},4>:/arch:SSE2>)
-    target_link_options(nghttp2 PRIVATE /DEBUG:FULL $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
-  endif()
-  # </ALCHEMY>
-
-  install(TARGETS nghttp2
-    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+  install(TARGETS ${SHARED_LIB} EXPORT ${EXPORT_SET})
+  list(APPEND nghttp2_exports ${SHARED_LIB})
 endif()
 
-if(HAVE_CUNIT OR ENABLE_STATIC_LIB)
-  # Static library (for unittests because of symbol visibility)
-  add_library(nghttp2_static STATIC ${NGHTTP2_SOURCES})
-  set_target_properties(nghttp2_static PROPERTIES
+# Static library (for unittests because of symbol visibility)
+if(BUILD_STATIC_LIBS)
+  add_library(${STATIC_LIB} STATIC ${NGHTTP2_SOURCES})
+
+  set_target_properties(${STATIC_LIB} PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
     VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
     ARCHIVE_OUTPUT_NAME nghttp2${STATIC_LIB_SUFFIX}
   )
-  target_compile_definitions(nghttp2_static PUBLIC "-DNGHTTP2_STATICLIB")
 
-  # <ALCHEMY>
-  if("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
-    target_compile_options(nghttp2_static PRIVATE /std:c++17 /permissive- /Z7 $<$<CONFIG:Release>:/Ob3> $<$<CONFIG:Release>:/Gy> $<$<EQUAL:${CMAKE_SIZEOF_VOID_P},4>:/arch:SSE2>)
-    target_link_options(nghttp2_static PRIVATE /DEBUG:FULL $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
-  endif()
-  # </ALCHEMY>
+  target_include_directories(${STATIC_LIB} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/includes>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/includes>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  )
 
-  if(ENABLE_STATIC_LIB)
-    install(TARGETS nghttp2_static
-      DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-  endif()
+  target_compile_definitions(${STATIC_LIB} PUBLIC "-DNGHTTP2_STATICLIB")
+
+  install(TARGETS ${STATIC_LIB} EXPORT ${EXPORT_SET})
+  list(APPEND nghttp2_exports ${STATIC_LIB})
 endif()
 
+if(BUILD_SHARED_LIBS)
+  set(LIB_SELECTED ${SHARED_LIB})
+else()
+  set(LIB_SELECTED ${STATIC_LIB})
+endif()
+
+add_library(${PROJECT_NAME}::nghttp2 ALIAS ${LIB_SELECTED})
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libnghttp2.pc"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+install(EXPORT ${EXPORT_SET}
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+  NAMESPACE ${PROJECT_NAME}::)

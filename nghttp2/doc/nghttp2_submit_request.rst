@@ -10,10 +10,14 @@ Synopsis
 .. function:: int32_t nghttp2_submit_request( nghttp2_session *session, const nghttp2_priority_spec *pri_spec, const nghttp2_nv *nva, size_t nvlen, const nghttp2_data_provider *data_prd, void *stream_user_data)
 
     
+    .. warning::
+    
+      Deprecated.  Use `nghttp2_submit_request2()` instead.
+    
     Submits HEADERS frame and optionally one or more DATA frames.
     
-    The *pri_spec* is priority specification of this request.  ``NULL``
-    means the default priority (see
+    The *pri_spec* is a deprecated priority specification of this
+    request.  ``NULL`` means the default priority (see
     `nghttp2_priority_spec_default_init()`).  To specify the priority,
     use `nghttp2_priority_spec_init()`.  If *pri_spec* is not ``NULL``,
     this function will copy its data members.

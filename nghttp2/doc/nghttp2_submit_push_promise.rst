@@ -46,7 +46,7 @@ Synopsis
     The client side is not allowed to use this function.
     
     To submit response headers and data, use
-    `nghttp2_submit_response()`.
+    `nghttp2_submit_response2()`.
     
     This function returns assigned promised stream ID if it succeeds,
     or one of the following negative error codes:

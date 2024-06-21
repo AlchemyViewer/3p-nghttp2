@@ -32,22 +32,23 @@ Synopsis
     DATA without END_STREAM flat set.  The library does not enforce
     this requirement, and applications should do this for themselves.
     If `nghttp2_submit_trailer()` is called before any response HEADERS
-    submission (usually by `nghttp2_submit_response()`), the content of
-    *nva* will be sent as response headers, which will result in error.
+    submission (usually by `nghttp2_submit_response2()`), the content
+    of *nva* will be sent as response headers, which will result in
+    error.
     
     This function has the same effect with `nghttp2_submit_headers()`,
     with flags = :enum:`nghttp2_flag.NGHTTP2_FLAG_END_STREAM` and both
     pri_spec and stream_user_data to NULL.
     
-    To submit trailer fields after `nghttp2_submit_response()` is
+    To submit trailer fields after `nghttp2_submit_response2()` is
     called, the application has to specify
-    :type:`nghttp2_data_provider` to `nghttp2_submit_response()`.
-    Inside of :type:`nghttp2_data_source_read_callback`, when setting
+    :type:`nghttp2_data_provider2` to `nghttp2_submit_response2()`.
+    Inside of :type:`nghttp2_data_source_read_callback2`, when setting
     :enum:`nghttp2_data_flag.NGHTTP2_DATA_FLAG_EOF`, also set
     :enum:`nghttp2_data_flag.NGHTTP2_DATA_FLAG_NO_END_STREAM`.  After
     that, the application can send trailer fields using
     `nghttp2_submit_trailer()`.  `nghttp2_submit_trailer()` can be used
-    inside :type:`nghttp2_data_source_read_callback`.
+    inside :type:`nghttp2_data_source_read_callback2`.
     
     This function returns 0 if it succeeds and *stream_id* is -1.
     Otherwise, this function returns 0 if it succeeds, or one of the

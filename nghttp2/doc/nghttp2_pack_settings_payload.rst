@@ -10,6 +10,10 @@ Synopsis
 .. function:: ssize_t nghttp2_pack_settings_payload( uint8_t *buf, size_t buflen, const nghttp2_settings_entry *iv, size_t niv)
 
     
+    .. warning::
+    
+      Deprecated.  Use `nghttp2_pack_settings_payload2()` instead.
+    
     Serializes the SETTINGS values *iv* in the *buf*.  The size of the
     *buf* is specified by *buflen*.  The number of entries in the *iv*
     array is given by *niv*.  The required space in *buf* for the *niv*
