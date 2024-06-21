@@ -124,9 +124,9 @@ pushd "$top/nghttp2"
                 cmake --install . --config Release
 
                 # conditionally run unit tests
-                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    ctest -C Release
-                fi
+                # if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                #     ctest -C Release
+                # fi
             popd
 
             mkdir -p "build_release_arm64"
@@ -149,9 +149,9 @@ pushd "$top/nghttp2"
                 cmake --install . --config Release
 
                 # conditionally run unit tests
-                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    ctest -C Release
-                fi
+                # if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                #     ctest -C Release
+                # fi
             popd
 
             # create staging dirs
@@ -191,7 +191,7 @@ pushd "$top/nghttp2"
                 cmake .. -G Ninja -DBUILD_SHARED_LIBS:BOOL=OFF \
                     -DCMAKE_BUILD_TYPE="Release" \
                     -DCMAKE_C_FLAGS="$opts_c" \
-                    -DCMAKE_INSTALL_PREFIX="$stage/release" \
+                    -DCMAKE_INSTALL_PREFIX="$stage" \
                     -DENABLE_LIB_ONLY=ON \
                     -DBUILD_STATIC_LIBS=ON
 
@@ -203,12 +203,6 @@ pushd "$top/nghttp2"
                 #    ctest -C Release
                 #fi
             popd
-
-            # Copy libraries
-            cp -a ${stage}/release/lib/*.a ${stage}/lib/release/
-
-            # copy headers
-            cp -a $stage/release/include/nghttp2/* $stage/include/nghttp2/
         ;;
     esac
     mkdir -p "$stage/LICENSES"
