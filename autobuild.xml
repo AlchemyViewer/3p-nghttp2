@@ -4,7 +4,7 @@
     <key>package_description</key>
     <map>
       <key>canonical_repo</key>
-      <string>https://bitbucket.org/lindenlab/3p-nghttp2</string>
+      <string>https://github.com/AlchemyViewer/3p-nghttp2</string>
       <key>copyright</key>
       <string>Copyright (c) 2012, 2014, 2015, 2016 Tatsuhiro Tsujikawa
 Copyright (c) 2012, 2014, 2015, 2016 nghttp2 contributors</string>
@@ -63,7 +63,6 @@ Copyright (c) 2012, 2014, 2015, 2016 nghttp2 contributors</string>
           </map>
           <key>manifest</key>
           <array>
-            <string>lib/debug/libnghttp2*.a</string>
             <string>lib/release/libnghttp2*.a</string>
           </array>
           <key>name</key>
@@ -83,8 +82,7 @@ Copyright (c) 2012, 2014, 2015, 2016 nghttp2 contributors</string>
           </map>
           <key>manifest</key>
           <array>
-            <string>lib/debug/*.a</string>
-            <string>lib/release/*.a</string>
+            <string>lib/*.a</string>
           </array>
           <key>name</key>
           <string>linux</string>
