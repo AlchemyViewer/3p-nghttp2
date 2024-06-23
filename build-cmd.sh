@@ -65,6 +65,7 @@ pushd "$top/nghttp2"
             pushd "build_debug"
                 cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Debug \
                     -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/debug" \
+                    -DBUILD_SHARED_LIBS=OFF \
                     -DENABLE_LIB_ONLY=ON \
                     -DBUILD_STATIC_LIBS=ON
 
@@ -77,6 +78,7 @@ pushd "$top/nghttp2"
             pushd "build_release"
                 cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release \
                     -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)/release" \
+                    -DBUILD_SHARED_LIBS=OFF \
                     -DENABLE_LIB_ONLY=ON \
                     -DBUILD_STATIC_LIBS=ON
 
