@@ -63,7 +63,7 @@ Copyright (c) 2012, 2014, 2015, 2016 nghttp2 contributors</string>
           </map>
           <key>manifest</key>
           <array>
-            <string>lib/release/libnghttp2*.dylib</string>
+            <string>lib/release/libnghttp2*.a</string>
           </array>
           <key>name</key>
           <string>darwin</string>
@@ -129,9 +129,9 @@ Copyright (c) 2012, 2014, 2015, 2016 nghttp2 contributors</string>
       <key>source_directory</key>
       <string>nghttp2</string>
       <key>source_type</key>
-      <string>hg</string>
-      <key>version_file</key>
-      <string>VERSION.txt</string>
+      <string>git</string>
+      <key>use_scm_version</key>
+      <boolean>true</boolean>
     </map>
     <key>type</key>
     <string>autobuild</string>

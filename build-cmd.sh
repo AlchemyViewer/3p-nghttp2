@@ -13,7 +13,7 @@ if [ -z "$AUTOBUILD" ] ; then
     exit 1
 fi
 
-if [ "$OSTYPE" = "cygwin" ] ; then
+if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" ]] ; then
     autobuild="$(cygpath -u $AUTOBUILD)"
 else
     autobuild="$AUTOBUILD"
@@ -29,9 +29,6 @@ source_environment_tempfile="$stage/source_environment.sh"
 
 # remove_cxxstd
 source "$(dirname "$AUTOBUILD_VARIABLES_FILE")/functions"
-
-NGHTTP2_VERSION_HEADER_DIR="$top/nghttp2/lib/includes/nghttp2"
-build=${AUTOBUILD_BUILD_ID:=0}
 
 # Restore all .sos
 restore_sos ()
@@ -57,51 +54,70 @@ restore_dylibs ()
 pushd "$top/nghttp2"
     case "$AUTOBUILD_PLATFORM" in
         windows*)
-        
-            packages="$(cygpath -m "$stage/packages")"
             load_vsvars
 
-            cmake . -G"$AUTOBUILD_WIN_CMAKE_GEN" -A"$AUTOBUILD_WIN_VSPLATFORM" \
-                -DCMAKE_C_FLAGS:STRING="$LL_BUILD_RELEASE" \
-                -DCMAKE_CXX_FLAGS:STRING="$LL_BUILD_RELEASE" \
-                -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$stage")"
+            opts="$(replace_switch /Zi /Z7 $LL_BUILD_RELEASE)"
+            plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
 
-            cmake --build . --config Release
+            # Release Build
+            mkdir -p "build"
+            pushd "build"
+                cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release \
+                    -DCMAKE_C_FLAGS="$plainopts" \
+                    -DCMAKE_CXX_FLAGS="$opts" \
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)" \
+                    -DCMAKE_INSTALL_LIBDIR="$(cygpath -m "$stage/lib/release")" \
+                    -DBUILD_SHARED_LIBS=OFF \
+                    -DBUILD_TESTING=OFF \
+                    -DENABLE_LIB_ONLY=ON \
+                    -DBUILD_STATIC_LIBS=ON
 
-            # Stage archives
-            mkdir -p "${stage}/lib/release"
-            mv "$top/nghttp2/lib/Release"/nghttp2.* "${stage}"/lib/release/
+                cmake --build . --config Release --clean-first
+                cmake --install . --config Release
+            popd
         ;;
 
         darwin*)
-            opts="${TARGET_OPTS:--arch $AUTOBUILD_CONFIGURE_ARCH $LL_BUILD_RELEASE}"
-            plainopts="$(remove_cxxstd $opts)"
+            # deploy target
+            export MACOSX_DEPLOYMENT_TARGET=${LL_BUILD_DARWIN_DEPLOY_TARGET}
 
-            # Release configure and build
-            autoreconf -i
-            automake
-            autoconf
-            ./configure --enable-lib-only CFLAGS="$plainopts" CXXFLAGS="$opts"
-            make -j$(nproc)
-            make check
+            for arch in x86_64 arm64 ; do
+                ARCH_ARGS="-arch $arch"
+                cxx_opts="${TARGET_OPTS:-$ARCH_ARGS $LL_BUILD_RELEASE}"
+                cc_opts="$(remove_cxxstd $cxx_opts)"
 
+                mkdir -p "build_$arch"
+                pushd "build_$arch"
+                    cmake .. -G Ninja -DBUILD_SHARED_LIBS:BOOL=OFF -DBUILD_TESTING=ON \
+                        -DCMAKE_BUILD_TYPE=Release \
+                        -DCMAKE_C_FLAGS="$cc_opts" \
+                        -DCMAKE_CXX_FLAGS="$cxx_opts" \
+                        -DCMAKE_INSTALL_PREFIX="$stage" \
+                        -DCMAKE_INSTALL_LIBDIR="$stage/lib/release" \
+                        -DCMAKE_OSX_ARCHITECTURES:STRING=$arch \
+                        -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+                        -DCMAKE_MACOSX_RPATH=YES \
+                        -DCMAKE_INSTALL_PREFIX="$stage" \
+                        -DCMAKE_INSTALL_LIBDIR="$stage/lib/release/$arch" \
+                        -DENABLE_LIB_ONLY=ON \
+                        -DBUILD_STATIC_LIBS=ON
+
+                    cmake --build . --config Release
+                    cmake --install . --config Release
+
+                    # conditionally run unit tests
+                    if [ "${DISABLE_UNIT_TESTS:-0}" = "0" -a "$arch" = "$(uname -m)" ]; then
+                        cmake --build . --config Release -t check
+                    fi
+                popd
+            done
+
+            # create staging dirs
+            mkdir -p "$stage/include/nghttp2"
             mkdir -p "$stage/lib/release"
-            # ?! Unclear why this build tucks built libraries into a hidden
-            # .libs directory.
-            mv "$top/nghttp2/lib/.libs/"/libnghttp2*.dylib "$stage/lib/release/"
 
-            # SL-807: fix_dylib_id doesn't really handle symlinks, even though
-            # it's coded to try to do so. Chase the multiple levels of
-            # indirection to find the real dylib.
-            pushd "$stage/lib/release"
-                dylib="libnghttp2.dylib"
-                while [ -L "$dylib" ]
-                do dylib="$(readlink "$dylib")"
-                done
-                fix_dylib_id "$dylib"
-            popd
-
-#            make distclean
+            # create fat libraries
+            lipo -create -output ${stage}/lib/release/libnghttp2.a ${stage}/lib/release/x86_64/libnghttp2.a ${stage}/lib/release/arm64/libnghttp2.a
         ;;
 
         linux*)
@@ -109,36 +125,28 @@ pushd "$top/nghttp2"
             opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE $LL_BUILD_RELEASE}"
             plainopts="$(remove_cxxstd $opts)"
 
-            # Handle any deliberate platform targeting
-            if [ -z "${TARGET_CPPFLAGS:-}" ]; then
-                # Remove sysroot contamination from build environment
-                unset CPPFLAGS
-            else
-                # Incorporate special pre-processing flags
-                export CPPFLAGS="$TARGET_CPPFLAGS"
-            fi
+            mkdir -p "build"
+            pushd "build"
+                CFLAGS="$plainopts" \
+                cmake .. -G Ninja -DBUILD_SHARED_LIBS:BOOL=OFF -DBUILD_TESTING=ON \
+                    -DCMAKE_BUILD_TYPE="Release" \
+                    -DCMAKE_C_FLAGS="$plainopts" \
+                    -DCMAKE_CXX_FLAGS="$opts" \
+                    -DCMAKE_INSTALL_PREFIX="$stage" \
+                    -DCMAKE_INSTALL_LIBDIR="$stage/lib/release" \
+                    -DENABLE_LIB_ONLY=ON \
+                    -DBUILD_STATIC_LIBS=ON
 
-            # Release configure and build
-            autoreconf -i
-            automake
-            autoconf
-            ./configure --enable-lib-only CFLAGS="$plainopts" CXXFLAGS="$opts"
-            make -j$(nproc)
-            make check
+                cmake --build . --config Release
+                cmake --install . --config Release
 
-            mkdir -p "$stage/lib/release"
-            # ?! Unclear why this build tucks built libraries into a hidden
-            # .libs directory.
-            mv "$top/nghttp2/lib/.libs/libnghttp2.a" "$stage/lib/release/"
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    cmake --build . --config Release -t check
+                fi
+            popd
         ;;
     esac
     mkdir -p "$stage/LICENSES"
     cp "$top/nghttp2/COPYING" "$stage/LICENSES/nghttp2.txt"
 popd
-
-# Must be done after the build.  nghttp2ver.h is created as part of the build.
-version="$(sed -n -E 's/#define NGHTTP2_VERSION "([^"]+)"/\1/p' "${NGHTTP2_VERSION_HEADER_DIR}/nghttp2ver.h" | tr -d '\r' )"
-echo "${version}.${build}" > "${stage}/VERSION.txt"
-
-mkdir -p "$stage/include/nghttp2"
-cp "$NGHTTP2_VERSION_HEADER_DIR"/*.h "$stage/include/nghttp2/"

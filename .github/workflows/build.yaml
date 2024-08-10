@@ -1,51 +1,27 @@
 name: Build
-on: [push]
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: [v*]
 jobs:
   build:
     strategy:
       matrix:
-        os: [windows-2022, macos-11, ubuntu-22.04]
+        os: [windows-2022, macos-12, ubuntu-22.04]
         addrsize: ["64"]
-        include:
-          - os: windows-2022
-            addrsize: "32"
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Install linux dependencies
-        if: runner.os == 'Linux'
+      - name: Setup Homebrew Packages
+        if: ${{ runner.os == 'macOS' }}
+        shell: bash
+        run: brew install ninja cunit
+      - name: Setup Apt Packages
+        if: ${{ runner.os == 'Linux' }}
+        shell: bash
         run: |
-          sudo apt-get install \
-            g++-12 \
-            clang-14 \
-            autoconf \
-            autoconf-archive \
-            automake \
-            autotools-dev \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libcunit1-dev \
-            libssl-dev \
-            libxml2-dev \
-            libev-dev \
-            libevent-dev \
-            libjansson-dev \
-            libjemalloc-dev \
-            libc-ares-dev \
-            libelf-dev \
-            cmake \
-            cmake-data
-
-      - name: Install macOS dependencies
-        if: runner.os == 'macOS'
-        run: |
-          brew install \
-            autoconf-archive \
-            libev \
-            cunit \
-            libressl \
-            automake
-
+          sudo apt-get update
+          sudo apt-get -y install ninja-build libcunit1-dev
       - uses: secondlife/action-autobuild@v4
         with:
           addrsize: ${{ matrix.addrsize }}
@@ -55,5 +31,3 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: secondlife/action-autobuild-release@v3
-        with:
-          public: true
