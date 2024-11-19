@@ -8,7 +8,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [windows-2022, macos-12, ubuntu-22.04]
+        os: [windows-2022, macos-15, ubuntu-22.04]
         addrsize: ["64"]
     runs-on: ${{ matrix.os }}
     steps:
@@ -22,7 +22,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get -y install ninja-build libcunit1-dev
-      - uses: secondlife/action-autobuild@v4
+      - uses: secondlife/action-autobuild@v5
         with:
           addrsize: ${{ matrix.addrsize }}
   release:

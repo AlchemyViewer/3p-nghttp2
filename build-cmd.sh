@@ -85,20 +85,22 @@ pushd "$top/nghttp2"
                 ARCH_ARGS="-arch $arch"
                 cxx_opts="${TARGET_OPTS:-$ARCH_ARGS $LL_BUILD_RELEASE}"
                 cc_opts="$(remove_cxxstd $cxx_opts)"
+                ld_opts="$ARCH_ARGS"
 
                 mkdir -p "build_$arch"
                 pushd "build_$arch"
+                    CFLAGS="$cc_opts" \
+                    CXXFLAGS="$cxx_opts" \
+                    LDFLAGS="$ld_opts" \
                     cmake .. -G Ninja -DBUILD_SHARED_LIBS:BOOL=OFF -DBUILD_TESTING=ON \
                         -DCMAKE_BUILD_TYPE=Release \
                         -DCMAKE_C_FLAGS="$cc_opts" \
                         -DCMAKE_CXX_FLAGS="$cxx_opts" \
                         -DCMAKE_INSTALL_PREFIX="$stage" \
-                        -DCMAKE_INSTALL_LIBDIR="$stage/lib/release" \
+                        -DCMAKE_INSTALL_LIBDIR="$stage/lib/release/$arch" \
                         -DCMAKE_OSX_ARCHITECTURES:STRING=$arch \
                         -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
                         -DCMAKE_MACOSX_RPATH=YES \
-                        -DCMAKE_INSTALL_PREFIX="$stage" \
-                        -DCMAKE_INSTALL_LIBDIR="$stage/lib/release/$arch" \
                         -DENABLE_LIB_ONLY=ON \
                         -DBUILD_STATIC_LIBS=ON
 
@@ -111,10 +113,6 @@ pushd "$top/nghttp2"
                     fi
                 popd
             done
-
-            # create staging dirs
-            mkdir -p "$stage/include/nghttp2"
-            mkdir -p "$stage/lib/release"
 
             # create fat libraries
             lipo -create -output ${stage}/lib/release/libnghttp2.a ${stage}/lib/release/x86_64/libnghttp2.a ${stage}/lib/release/arm64/libnghttp2.a
