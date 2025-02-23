@@ -12,22 +12,14 @@ jobs:
         addrsize: ["64"]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Setup Homebrew Packages
-        if: ${{ runner.os == 'macOS' }}
-        shell: bash
-        run: brew install ninja cunit
-      - name: Setup Apt Packages
-        if: ${{ runner.os == 'Linux' }}
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install ninja-build libcunit1-dev
-      - uses: secondlife/action-autobuild@v5
+      - uses: AlchemyViewer/action-autobuild@v5
         with:
           addrsize: ${{ matrix.addrsize }}
+          apt-packages: ninja-build libcunit1-dev
+          brew-packages: ninja cunit
   release:
     needs: build
     runs-on: [ubuntu-latest]
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: secondlife/action-autobuild-release@v3
+      - uses: AlchemyViewer/action-autobuild-release@v4

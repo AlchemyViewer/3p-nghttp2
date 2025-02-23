@@ -56,12 +56,32 @@ pushd "$top/nghttp2"
         windows*)
             load_vsvars
 
-            opts="$(replace_switch /Zi /Z7 $LL_BUILD_RELEASE)"
-            plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
+            # Debug Build
+            mkdir -p "build_debug"
+            pushd "build_debug"
+                opts="$(replace_switch /Zi /Z7 $LL_BUILD_DEBUG)"
+                plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
+
+                cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+                    -DCMAKE_C_FLAGS="$plainopts" \
+                    -DCMAKE_CXX_FLAGS="$opts" \
+                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)" \
+                    -DCMAKE_INSTALL_LIBDIR="$(cygpath -m "$stage/lib/debug")" \
+                    -DBUILD_SHARED_LIBS=OFF \
+                    -DBUILD_TESTING=OFF \
+                    -DENABLE_LIB_ONLY=ON \
+                    -DBUILD_STATIC_LIBS=ON
+
+                cmake --build . --config Debug --clean-first
+                cmake --install . --config Debug
+            popd
 
             # Release Build
-            mkdir -p "build"
-            pushd "build"
+            mkdir -p "build_release"
+            pushd "build_release"
+                opts="$(replace_switch /Zi /Z7 $LL_BUILD_RELEASE)"
+                plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
+
                 cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release \
                     -DCMAKE_C_FLAGS="$plainopts" \
                     -DCMAKE_CXX_FLAGS="$opts" \
