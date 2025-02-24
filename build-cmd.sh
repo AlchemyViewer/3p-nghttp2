@@ -51,6 +51,8 @@ restore_dylibs ()
     done
 }
 
+apply_patch "$top/patches/update-cmake-version-compat.patch" "nghttp2"
+
 pushd "$top/nghttp2"
     case "$AUTOBUILD_PLATFORM" in
         windows*)
@@ -62,9 +64,11 @@ pushd "$top/nghttp2"
                 opts="$(replace_switch /Zi /Z7 $LL_BUILD_DEBUG)"
                 plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
 
-                cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+                cmake .. -G"$AUTOBUILD_WIN_CMAKE_GEN" -A"$AUTOBUILD_WIN_VSPLATFORM" \
+                    -DCMAKE_CONFIGURATION_TYPES=Debug \
                     -DCMAKE_C_FLAGS="$plainopts" \
                     -DCMAKE_CXX_FLAGS="$opts" \
+                    -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded" \
                     -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)" \
                     -DCMAKE_INSTALL_LIBDIR="$(cygpath -m "$stage/lib/debug")" \
                     -DBUILD_SHARED_LIBS=OFF \
@@ -82,9 +86,11 @@ pushd "$top/nghttp2"
                 opts="$(replace_switch /Zi /Z7 $LL_BUILD_RELEASE)"
                 plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
 
-                cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release \
+                cmake .. -G"$AUTOBUILD_WIN_CMAKE_GEN" -A"$AUTOBUILD_WIN_VSPLATFORM" \
+                    -DCMAKE_CONFIGURATION_TYPES=Release \
                     -DCMAKE_C_FLAGS="$plainopts" \
                     -DCMAKE_CXX_FLAGS="$opts" \
+                    -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded" \
                     -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)" \
                     -DCMAKE_INSTALL_LIBDIR="$(cygpath -m "$stage/lib/release")" \
                     -DBUILD_SHARED_LIBS=OFF \
