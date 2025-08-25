@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index c09e43a6..aeb7c7df 100644
+index e22e7ce5..f358e72c 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -22,7 +22,7 @@
@@ -7,7 +7,7 @@ index c09e43a6..aeb7c7df 100644
  # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  
 -cmake_minimum_required(VERSION 3.14)
-+cmake_minimum_required(VERSION 3.14...3.31)
++cmake_minimum_required(VERSION 3.14...4.0)
  # XXX using 1.8.90 instead of 1.9.0-DEV
- project(nghttp2 VERSION 1.64.0 LANGUAGES C)
+ project(nghttp2 VERSION 1.66.0 LANGUAGES C)
  

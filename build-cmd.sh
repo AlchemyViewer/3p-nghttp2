@@ -30,27 +30,6 @@ source_environment_tempfile="$stage/source_environment.sh"
 # remove_cxxstd
 source "$(dirname "$AUTOBUILD_VARIABLES_FILE")/functions"
 
-# Restore all .sos
-restore_sos ()
-{
-    for solib in "${stage}"/packages/lib/release/lib*.so*.disable; do
-        if [ -f "$solib" ]; then
-            mv -f "$solib" "${solib%.disable}"
-        fi
-    done
-}
-
-
-# Restore all .dylibs
-restore_dylibs ()
-{
-    for dylib in "$stage/packages/lib"/release/*.dylib.disable; do
-        if [ -f "$dylib" ]; then
-            mv "$dylib" "${dylib%.disable}"
-        fi
-    done
-}
-
 apply_patch "$top/patches/update-cmake-version-compat.patch" "nghttp2"
 
 pushd "$top/nghttp2"
@@ -58,49 +37,65 @@ pushd "$top/nghttp2"
         windows*)
             load_vsvars
 
-            # Debug Build
-            mkdir -p "build_debug"
-            pushd "build_debug"
-                opts="$(replace_switch /Zi /Z7 $LL_BUILD_DEBUG)"
-                plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
+            for arch in sse avx2 arm64 ; do
+                platform_target="x64"
+                if [[ "$arch" == "arm64" ]]; then
+                    platform_target="ARM64"
+                fi
 
-                cmake .. -G"$AUTOBUILD_WIN_CMAKE_GEN" -A"$AUTOBUILD_WIN_VSPLATFORM" \
-                    -DCMAKE_CONFIGURATION_TYPES=Debug \
-                    -DCMAKE_C_FLAGS="$plainopts" \
-                    -DCMAKE_CXX_FLAGS="$opts" \
-                    -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded" \
-                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)" \
-                    -DCMAKE_INSTALL_LIBDIR="$(cygpath -m "$stage/lib/debug")" \
-                    -DBUILD_SHARED_LIBS=OFF \
-                    -DBUILD_TESTING=OFF \
-                    -DENABLE_LIB_ONLY=ON \
-                    -DBUILD_STATIC_LIBS=ON
+                mkdir -p "build_debug_$arch"
+                pushd "build_debug_$arch"
+                    opts="$(replace_switch /Zi /Z7 $LL_BUILD_DEBUG)"
+                    if [[ "$arch" == "avx2" ]]; then
+                        opts="$(replace_switch /arch:SSE4.2 /arch:AVX2 $opts)"
+                    elif [[ "$arch" == "arm64" ]]; then
+                        opts="$(remove_switch /arch:SSE4.2 $opts)"
+                    fi
+                    plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
 
-                cmake --build . --config Debug --clean-first
-                cmake --install . --config Debug
-            popd
+                    cmake .. -G"$AUTOBUILD_WIN_CMAKE_GEN" -A"$platform_target" \
+                        -DCMAKE_CONFIGURATION_TYPES=Debug \
+                        -DCMAKE_C_FLAGS="$plainopts" \
+                        -DCMAKE_CXX_FLAGS="$opts" \
+                        -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded" \
+                        -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)" \
+                        -DCMAKE_INSTALL_LIBDIR="$(cygpath -m "$stage/lib/$arch/debug")" \
+                        -DBUILD_SHARED_LIBS=OFF \
+                        -DBUILD_TESTING=OFF \
+                        -DENABLE_LIB_ONLY=ON \
+                        -DBUILD_STATIC_LIBS=ON
 
-            # Release Build
-            mkdir -p "build_release"
-            pushd "build_release"
-                opts="$(replace_switch /Zi /Z7 $LL_BUILD_RELEASE)"
-                plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
+                    cmake --build . --config Debug --clean-first
+                    cmake --install . --config Debug
+                popd
 
-                cmake .. -G"$AUTOBUILD_WIN_CMAKE_GEN" -A"$AUTOBUILD_WIN_VSPLATFORM" \
-                    -DCMAKE_CONFIGURATION_TYPES=Release \
-                    -DCMAKE_C_FLAGS="$plainopts" \
-                    -DCMAKE_CXX_FLAGS="$opts" \
-                    -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded" \
-                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)" \
-                    -DCMAKE_INSTALL_LIBDIR="$(cygpath -m "$stage/lib/release")" \
-                    -DBUILD_SHARED_LIBS=OFF \
-                    -DBUILD_TESTING=OFF \
-                    -DENABLE_LIB_ONLY=ON \
-                    -DBUILD_STATIC_LIBS=ON
+                # Release Build
+                mkdir -p "build_release_$arch"
+                pushd "build_release_$arch"
+                    opts="$(replace_switch /Zi /Z7 $LL_BUILD_RELEASE)"
+                    if [[ "$arch" == "avx2" ]]; then
+                        opts="$(replace_switch /arch:SSE4.2 /arch:AVX2 $opts)"
+                    elif [[ "$arch" == "arm64" ]]; then
+                        opts="$(remove_switch /arch:SSE4.2 $opts)"
+                    fi
+                    plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
 
-                cmake --build . --config Release --clean-first
-                cmake --install . --config Release
-            popd
+                    cmake .. -G"$AUTOBUILD_WIN_CMAKE_GEN" -A"$platform_target" \
+                        -DCMAKE_CONFIGURATION_TYPES=Release \
+                        -DCMAKE_C_FLAGS="$plainopts" \
+                        -DCMAKE_CXX_FLAGS="$opts" \
+                        -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded" \
+                        -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)" \
+                        -DCMAKE_INSTALL_LIBDIR="$(cygpath -m "$stage/lib/$arch/release")" \
+                        -DBUILD_SHARED_LIBS=OFF \
+                        -DBUILD_TESTING=OFF \
+                        -DENABLE_LIB_ONLY=ON \
+                        -DBUILD_STATIC_LIBS=ON
+
+                    cmake --build . --config Release --clean-first
+                    cmake --install . --config Release
+                popd
+            done
         ;;
 
         darwin*)

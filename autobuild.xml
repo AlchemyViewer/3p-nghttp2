@@ -120,8 +120,12 @@ Copyright (c) 2012, 2014, 2015, 2016 nghttp2 contributors</string>
           </map>
           <key>manifest</key>
           <array>
-            <string>lib/debug/nghttp2.*</string>
-            <string>lib/release/nghttp2.*</string>
+            <string>lib/sse/debug/nghttp2.*</string>
+            <string>lib/avx2/debug/nghttp2.*</string>
+            <string>lib/arm64/debug/nghttp2.*</string>
+            <string>lib/sse/release/nghttp2.*</string>
+            <string>lib/avx2/release/nghttp2.*</string>
+            <string>lib/arm64/release/nghttp2.*</string>
           </array>
           <key>name</key>
           <string>windows64</string>
