@@ -146,6 +146,7 @@ pushd "$top/nghttp2"
                 if [[ "$arch" == "avx2" ]]; then
                     opts="$(replace_switch -march=x86-64-v2 -march=x86-64-v3 $opts)"
                 fi
+                plainopts="$(remove_cxxstd $opts)"
 
                 # Release
                 mkdir -p "build_$arch"
