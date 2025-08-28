@@ -140,30 +140,36 @@ pushd "$top/nghttp2"
         ;;
 
         linux*)
-            # Default target per --address-size
-            opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE $LL_BUILD_RELEASE}"
-            plainopts="$(remove_cxxstd $opts)"
-
-            mkdir -p "build"
-            pushd "build"
-                CFLAGS="$plainopts" \
-                cmake .. -G Ninja -DBUILD_SHARED_LIBS:BOOL=OFF -DBUILD_TESTING=ON \
-                    -DCMAKE_BUILD_TYPE="Release" \
-                    -DCMAKE_C_FLAGS="$plainopts" \
-                    -DCMAKE_CXX_FLAGS="$opts" \
-                    -DCMAKE_INSTALL_PREFIX="$stage" \
-                    -DCMAKE_INSTALL_LIBDIR="$stage/lib/release" \
-                    -DENABLE_LIB_ONLY=ON \
-                    -DBUILD_STATIC_LIBS=ON
-
-                cmake --build . --config Release
-                cmake --install . --config Release
-
-                # conditionally run unit tests
-                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    cmake --build . --config Release -t check
+            for arch in sse avx2 ; do
+                # Default target per autobuild build --address-size
+                opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE $LL_BUILD_RELEASE}"
+                if [[ "$arch" == "avx2" ]]; then
+                    opts="$(replace_switch -march=x86-64-v2 -march=x86-64-v3 $opts)"
                 fi
-            popd
+                plainopts="$(remove_cxxstd $opts)"
+
+                # Release
+                mkdir -p "build_$arch"
+                pushd "build_$arch"
+                    CFLAGS="$plainopts" \
+                    cmake .. -G Ninja -DBUILD_SHARED_LIBS:BOOL=OFF -DBUILD_TESTING=ON \
+                        -DCMAKE_BUILD_TYPE="Release" \
+                        -DCMAKE_C_FLAGS="$plainopts" \
+                        -DCMAKE_CXX_FLAGS="$opts" \
+                        -DCMAKE_INSTALL_PREFIX="$stage" \
+                        -DCMAKE_INSTALL_LIBDIR="$stage/lib/$arch/release" \
+                        -DENABLE_LIB_ONLY=ON \
+                        -DBUILD_STATIC_LIBS=ON
+
+                    cmake --build . --config Release
+                    cmake --install . --config Release
+
+                    # conditionally run unit tests
+                    if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                        cmake --build . --config Release -t check
+                    fi
+                popd
+            done
         ;;
     esac
     mkdir -p "$stage/LICENSES"
